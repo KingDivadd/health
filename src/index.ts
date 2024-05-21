@@ -55,7 +55,8 @@ app.post('/subscribe', (req, res) => {
     const payloadData = {
         title: 'Push Notification Title',
         body: 'Notification body entered by David',
-        icon: 'https://images.pexels.com/photos/5083013/pexels-photo-5083013.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=2'
+        icon: 'https://images.pexels.com/photos/5083013/pexels-photo-5083013.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=2',
+        url: 'http://localhost:3000'
     };
 
     const payload = JSON.stringify(payloadData);
