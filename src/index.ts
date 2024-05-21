@@ -60,7 +60,9 @@ app.post('/subscribe', (req, res) => {
 
     const payload = JSON.stringify(payloadData);
 
-    webpush.sendNotification(subscription, payload).catch(err => console.error(err));
+    webpush.sendNotification(subscription, payload)
+    .then(()=> console.log('Push notification sent successfully'.blue.bold))
+    .catch(err => console.error(err));
 });
 
 
