@@ -50,6 +50,12 @@ app.post('/subscribe', (req, res) => {
 
     res.status(201).json({});
 
+    const payloadData = {
+        title: 'Push Notification Title',
+        body: 'Notification body entered by David',
+        icon: 'https://images.pexels.com/photos/5083013/pexels-photo-5083013.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=2'
+    };
+
     const payload = JSON.stringify({ title: 'Push Test' });
 
     webpush.sendNotification(subscription, payload).catch(err => console.error(err));
