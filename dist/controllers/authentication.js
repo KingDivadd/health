@@ -131,7 +131,6 @@ class Authentication {
                 }
                 const encrypted_password = user.password;
                 const match_password = yield bcrypt.compare(password, encrypted_password);
-                console.log('user => ', user, 'encrp pass', encrypted_password, 'pass ', password);
                 if (!match_password) {
                     return res.status(401).json({ err: `Incorrect password, correct password and try again.` });
                 }

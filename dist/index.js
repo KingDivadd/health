@@ -14,6 +14,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 const express_1 = __importDefault(require("express"));
 const http_1 = __importDefault(require("http"));
+const web_push_1 = __importDefault(require("web-push"));
 const socket_io_1 = require("socket.io");
 const body_parser_1 = __importDefault(require("body-parser"));
 const cors_1 = __importDefault(require("cors"));
@@ -42,6 +43,17 @@ app.use(express_1.default.json());
 app.use((0, cors_1.default)(constants_1.CORS_OPTION));
 app.use(body_parser_1.default.urlencoded({ extended: false }));
 app.use(body_parser_1.default.json());
+// handling web push
+if (!constants_1.public_vipid_key || !constants_1.private_vipid_key) {
+    throw new Error('Private and Public Vipid keys not found');
+}
+web_push_1.default.setVapidDetails('mailto:ireugbudavid@gmail.com', constants_1.public_vipid_key, constants_1.private_vipid_key);
+app.post('/subscribe', (req, res) => {
+    const subscription = req.body;
+    res.status(201).json({});
+    const payload = JSON.stringify({ title: 'Push Test' });
+    web_push_1.default.sendNotification(subscription, payload).catch(err => console.error(err));
+});
 try {
     io.on("connection", (socket) => {
         socket.on('send-chat-text', (data, callback) => __awaiter(void 0, void 0, void 0, function* () {

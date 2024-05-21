@@ -18,6 +18,8 @@ export const specialist_percentage  = Number(process.env.SPECIALIST_PHYSCIAN_CHA
 export const general_physician_percentage  = Number(process.env.GENERAL_PHYSYCIAN_CHAT_PERCENTAGE)
 export const videsdk_api_key = process.env.VIDEO_SDK_API_KEY
 export const videsdk_secret_key = process.env.VIDEO_SDK_API_SECRET
+export const public_vipid_key = process.env.VAVID_PUBLIC_KEY
+export const private_vipid_key = process.env.VAVID_PRIVATE_KEY
 
 
 export const CORS_OPTION ={

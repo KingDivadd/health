@@ -209,6 +209,16 @@ class Chat {
                 return { statusCode: 500, message: `Failed to create chat, reason : ${error} ${{ data }}` };
             }
         });
+        this.clearChat = (req, res, next) => __awaiter(this, void 0, void 0, function* () {
+            try {
+                const chats = yield chatCollection_1.default.deleteMany({ appointment_id: '72d02e62-7f0e-4316-97f2-d7ec8aa62d92' });
+                return res.status(200).json({ chats });
+            }
+            catch (err) {
+                console.log('Error clearing chat');
+                return res.status(500).json({ err: 'Error clearing chat' });
+            }
+        });
     }
 }
 exports.default = new Chat;

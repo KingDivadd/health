@@ -21,7 +21,7 @@ const { patientSignup, physicianSignup, patientLogin, physicianLogin, generateUs
 const { patientUpdateCompletionValidation, patientOrgProfileCompletionValidation, patientEditValidation, patientLoginValidation, patientSignupValidation, encryptedDataValidation, bookAppointmentValidation, } = patientValidation_1.default;
 const { loggedInPatient, loggedInPhysician, editPatientData, signupUpdatePatientData, editPhysicianData, singupUpdatePhysicianData, filterPhysicians, allPhysicians } = users_1.default;
 const { genOtpValidation, passwordUpdateValidation, verifyOtpValidation } = authValidation_1.default;
-const { openChat, getChats } = chat_1.default;
+const { openChat, getChats, clearChat } = chat_1.default;
 const { decryptData, encryptData, account, accountTransaction } = userAccount_1.default;
 const { createAppointment, updateAppointment, allAppointments, filterAppointments } = appointment_1.default;
 const { generateVideoSdkToken, createMeeting, joinMeeting, createRoom } = videoChat_1.default;
@@ -55,6 +55,7 @@ router.route('/get-appointment/:page_number').get(isLoggedIn, allAppointments);
 router.route('/filter-appointment/:page_number').post(isLoggedIn, filterAppointments);
 // Chat
 router.route('/get-chats/:patient_id/:physician_id').get(isLoggedIn, getChats);
+router.route('/clear-chat').delete(clearChat);
 // VideoSDK
 router.route('/generate-token').post(isLoggedIn, generateVideoSdkToken);
 router.route('/create-meeting').post(createMeeting);

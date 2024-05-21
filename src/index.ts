@@ -1,5 +1,6 @@
 import express from 'express';
 import http from 'http';
+import webpush from 'web-push'
 import { Server } from 'socket.io';
 import bodyParser from 'body-parser';
 import cors from 'cors';
@@ -11,7 +12,7 @@ import index from './routes/index';
 import notFound from './middlewares/notFound';
 import networkAvailability from './middlewares/networkAvailability';
 import handleDatabaseError from './middlewares/databaseUnavailable';
-import { CORS_OPTION, port, redis_url } from './helpers/constants';
+import { CORS_OPTION, port, private_vipid_key, public_vipid_key, redis_url } from './helpers/constants';
 import connectToMongoDB from './config/mongodb';
 import chat from './controllers/chat';
 import authValidation, { chatValidation } from './validations/authValidation';
@@ -35,6 +36,25 @@ app.use(express.json());
 app.use(cors(CORS_OPTION));
 app.use(bodyParser.urlencoded({ extended: false }));
 app.use(bodyParser.json());
+
+// handling web push
+
+if (!public_vipid_key || !private_vipid_key){
+    throw new Error ('Private and Public Vipid keys not found')
+}
+
+webpush.setVapidDetails('mailto:ireugbudavid@gmail.com', public_vipid_key, private_vipid_key);
+
+app.post('/subscribe', (req, res) => {
+    const subscription = req.body;
+
+    res.status(201).json({});
+
+    const payload = JSON.stringify({ title: 'Push Test' });
+
+    webpush.sendNotification(subscription, payload).catch(err => console.error(err));
+});
+
 
 try {
     io.on("connection", (socket:any) => {

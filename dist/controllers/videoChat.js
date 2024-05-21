@@ -131,7 +131,11 @@ class VideoChat {
                     "Content-Type": "application/json",
                 };
                 const body = {
-                // your room creation parameters
+                    "customRoomId": "aaa-bbb-ccc",
+                    "webhook": "example.webhook",
+                    "autoCloseConfig": "example",
+                    "autoStartConfig": "example",
+                    "multiComposition": "multiCompositionObj"
                 };
                 const url = `https://api.videosdk.live/v2/rooms`;
                 const response = yield axios_1.default.post(url, body, { headers });
