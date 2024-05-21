@@ -48,6 +48,8 @@ webpush.setVapidDetails('mailto:ireugbudavid@gmail.com', public_vipid_key, priva
 app.post('/subscribe', (req, res) => {
     const subscription = req.body;
 
+    console.log('subscription : ',subscription)
+
     res.status(201).json({});
 
     const payloadData = {
@@ -56,7 +58,7 @@ app.post('/subscribe', (req, res) => {
         icon: 'https://images.pexels.com/photos/5083013/pexels-photo-5083013.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=2'
     };
 
-    const payload = JSON.stringify({ title: 'Push Test' });
+    const payload = JSON.stringify(payloadData);
 
     webpush.sendNotification(subscription, payload).catch(err => console.error(err));
 });

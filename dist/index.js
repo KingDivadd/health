@@ -51,7 +51,12 @@ web_push_1.default.setVapidDetails('mailto:ireugbudavid@gmail.com', constants_1.
 app.post('/subscribe', (req, res) => {
     const subscription = req.body;
     res.status(201).json({});
-    const payload = JSON.stringify({ title: 'Push Test' });
+    const payloadData = {
+        title: 'Push Notification Title',
+        body: 'Notification body entered by David',
+        icon: 'https://images.pexels.com/photos/5083013/pexels-photo-5083013.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=2'
+    };
+    const payload = JSON.stringify(payloadData);
     web_push_1.default.sendNotification(subscription, payload).catch(err => console.error(err));
 });
 try {
