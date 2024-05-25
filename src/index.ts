@@ -51,14 +51,14 @@ app.post('/subscribe', (req, res) => {
 
     console.log('subscription : ',subscription)
 
-    res.status(201).json({});
-
+    
     const payloadData = {
         title: 'Push Notification Title',
         body: 'Notification body entered by David',
         icon: 'https://images.pexels.com/photos/5083013/pexels-photo-5083013.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=2',
         url: url
     };
+    res.status(201).json({payloadData});
 
     const payload = JSON.stringify(payloadData);
 
@@ -67,33 +67,33 @@ app.post('/subscribe', (req, res) => {
     .catch(err => console.error(err));
 });
 
-const serverKey = 'BAoq8SpI6kX6dxoWvYtLAkrzOirNOK6vaWI93D-4y0A8zbRe6LEWgb208TnmEa-vK1N6gSKpiFP9JODKIY4ueD8';
-const fcm = new FCM(serverKey);
+// const serverKey = 'BAoq8SpI6kX6dxoWvYtLAkrzOirNOK6vaWI93D-4y0A8zbRe6LEWgb208TnmEa-vK1N6gSKpiFP9JODKIY4ueD8';
+// const fcm = new FCM(serverKey);
 
-app.post('/send-notification', (req, res) => {
-    const deviceToken = req.body.deviceToken;
-    const message = {
-        to: deviceToken,
-        notification: {
-        title: 'Notification Test App',
-        body: 'Message from Node.js app',
-        },
-        data: {
-        title: 'OK',
-        body: '{"name": "OK Google", "product_id": "123", "final_price": "0.00035"}',
-        },
-    };
+// app.post('/send-notification', (req, res) => {
+//     const deviceToken = req.body.deviceToken;
+//     const message = {
+//         to: deviceToken,
+//         notification: {
+//         title: 'Notification Test App',
+//         body: 'Message from Node.js app',
+//         },
+//         data: {
+//         title: 'OK',
+//         body: '{"name": "OK Google", "product_id": "123", "final_price": "0.00035"}',
+//         },
+//     };
 
-    fcm.send(message, (err:any, response:any) => {
-        if (err) {
-        console.error('Error sending notification:', err);
-        res.status(500).send({ message: 'Error sending notification' });
-        } else {
-        console.log('Notification sent successfully:', response);
-        res.send({ message: 'Notification sent successfully' });
-        }
-    });
-});
+//     fcm.send(message, (err:any, response:any) => {
+//         if (err) {
+//         console.error('Error sending notification:', err);
+//         res.status(500).send({ message: 'Error sending notification' });
+//         } else {
+//         console.log('Notification sent successfully:', response);
+//         res.send({ message: 'Notification sent successfully' });
+//         }
+//     });
+// });
 
 
 try {
