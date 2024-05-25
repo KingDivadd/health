@@ -53,7 +53,7 @@ app.post('/subscribe', (req, res) => {
 
     const payloadData = {
         title: 'Push Notification Title',
-        body: body
+        body: body,
         icon: 'https://images.pexels.com/photos/5083013/pexels-photo-5083013.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=2',
         url: url
     };
