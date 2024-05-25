@@ -39,39 +39,42 @@ app.use(bodyParser.urlencoded({ extended: false }));
 app.use(bodyParser.json());
 
 // handling web push
-if (!public_vipid_key || !private_vipid_key){
-    throw new Error ('Private and Public Vapid keys not found');
-  }
-  
-  webpush.setVapidDetails('mailto:ireugbudavid@gmail.com', public_vipid_key, private_vipid_key);
-  
-  app.post('/subscribe', (req, res) => {
+
+if (!public_vapid_key || !private_vapid_key) {
+    throw new Error('Private and Public VAPID keys not found');
+}
+
+webpush.setVapidDetails('mailto:ireugbudavid@gmail.com', public_vapid_key, private_vapid_key);
+
+app.post('/subscribe', (req, res) => {
     const { subscription, url } = req.body;
-  
+
     console.log('Subscription:', subscription);
-  
+
     const payloadData = {
-      title: 'Push Notification Title',
-      body: 'Notification body entered by David',
-      icon: 'https://images.pexels.com/photos/5083013/pexels-photo-5083013.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=2',
-      url: url
+        title: 'Push Notification Title',
+        body: 'Notification body entered by David',
+        icon: 'https://images.pexels.com/photos/5083013/pexels-photo-5083013.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=2',
+        url: url
     };
-  
+
+    console.log('payload data', payloadData)
+
     const payload = JSON.stringify(payloadData);
-  
+
+    console.log('string payload ', payload)
+
     webpush.sendNotification(subscription, payload)
-      .then(() => {
-        console.log('Push notification sent successfully');
-        res.status(201).json({ data: payloadData });
-      })
-      .catch(err => {
-        console.error('Error sending notification:', err);
-        res.sendStatus(500);
-      });
-  
-    console.log('Push notification sent');
-  });
-  
+        .then(() => {
+            console.log('Push notification sent successfully');
+            res.status(201).json({ data: payloadData, test: 'teting' });
+        })
+        .catch(err => {
+            console.error('Error sending notification:', err);
+            res.status(500).json({ error: 'Error sending notification' });
+        });
+});
+
 
 // const serverKey = 'BAoq8SpI6kX6dxoWvYtLAkrzOirNOK6vaWI93D-4y0A8zbRe6LEWgb208TnmEa-vK1N6gSKpiFP9JODKIY4ueD8';
 // const fcm = new FCM(serverKey);
