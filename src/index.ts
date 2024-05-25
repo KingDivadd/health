@@ -67,7 +67,7 @@ if (!public_vipid_key || !private_vipid_key){
 //     .catch(err => console.error(err));
 // });
 
-const serverKey = 'BPLgD699xXsZ8qltNq9ojww0DDKgOkKioQDx_myIIkYix8Y3B7XTB8AHXIBRdrc76W_wN0rjWdL4-q1NHfjXzP4 ';
+const serverKey = 'BPLgD699xXsZ8qltNq9ojww0DDKgOkKioQDx_myIIkYix8Y3B7XTB8AHXIBRdrc76W_wN0rjWdL4-q1NHfjXzP4';
 const deviceToken = '<DEVICE_TOKEN>';
 
 const message = {
