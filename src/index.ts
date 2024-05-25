@@ -44,53 +44,53 @@ if (!public_vipid_key || !private_vipid_key){
     throw new Error ('Private and Public Vipid keys not found')
 }
 
-// webpush.setVapidDetails('mailto:ireugbudavid@gmail.com', public_vipid_key, private_vipid_key);
+webpush.setVapidDetails('mailto:ireugbudavid@gmail.com', public_vipid_key, private_vipid_key);
 
-// app.post('/subscribe', (req, res) => {
-//     const {subscription, url} = req.body;
+app.post('/subscribe', (req, res) => {
+    const {subscription, url} = req.body;
 
-//     console.log('subscription : ',subscription)
+    console.log('subscription : ',subscription)
 
-//     res.status(201).json({});
+    res.status(201).json({});
 
-//     const payloadData = {
-//         title: 'Push Notification Title',
-//         body: 'Notification body entered by David',
-//         icon: 'https://images.pexels.com/photos/5083013/pexels-photo-5083013.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=2',
-//         url: url
-//     };
-
-//     const payload = JSON.stringify(payloadData);
-
-//     webpush.sendNotification(subscription, payload)
-//     .then(()=> console.log('Push notification sent successfully'.blue.bold))
-//     .catch(err => console.error(err));
-// });
-
-const serverKey = 'BPLgD699xXsZ8qltNq9ojww0DDKgOkKioQDx_myIIkYix8Y3B7XTB8AHXIBRdrc76W_wN0rjWdL4-q1NHfjXzP4';
-const deviceToken = '<DEVICE_TOKEN>';
-
-const message = {
-    to: deviceToken,
-    notification: {
-        title: 'Notification Test App',
-        body: 'Message from Node.js app',
-    },
-    data: {
-        title: 'OK',
-        body: '{"name": "OK Google", "product_id": "123", "final_price": "0.00035"}',
-    },
+    const payloadData = {
+        title: 'Push Notification Title',
+        body: 'Notification body entered by David',
+        icon: 'https://images.pexels.com/photos/5083013/pexels-photo-5083013.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=2',
+        url: url
     };
 
-    const fcm = new FCM(serverKey);
+    const payload = JSON.stringify(payloadData);
 
-    fcm.send(message, (err:any, res:any) => {
-    if (err) {
-        console.error('Error sending notification:', err);
-    } else {
-        console.log('Notification sent successfully:', res);
-    }
+    webpush.sendNotification(subscription, payload)
+    .then(()=> console.log('Push notification sent successfully'.blue.bold))
+    .catch(err => console.error(err));
 });
+
+// const serverKey = 'BPLgD699xXsZ8qltNq9ojww0DDKgOkKioQDx_myIIkYix8Y3B7XTB8AHXIBRdrc76W_wN0rjWdL4-q1NHfjXzP4';
+// const deviceToken = '<DEVICE_TOKEN>';
+
+// const message = {
+//     to: deviceToken,
+//     notification: {
+//         title: 'Notification Test App',
+//         body: 'Message from Node.js app',
+//     },
+//     data: {
+//         title: 'OK',
+//         body: '{"name": "OK Google", "product_id": "123", "final_price": "0.00035"}',
+//     },
+//     };
+
+//     const fcm = new FCM(serverKey);
+
+//     fcm.send(message, (err:any, res:any) => {
+//     if (err) {
+//         console.error('Error sending notification:', err);
+//     } else {
+//         console.log('Notification sent successfully:', res);
+//     }
+// });
 
 
 try {
