@@ -67,7 +67,6 @@ app.use(bodyParser.json());
 //     .catch(err => console.error(err));
 // });
 
-
 const serverKey = 'BAoq8SpI6kX6dxoWvYtLAkrzOirNOK6vaWI93D-4y0A8zbRe6LEWgb208TnmEa-vK1N6gSKpiFP9JODKIY4ueD8';
 const fcm = new FCM(serverKey);
 
@@ -95,7 +94,6 @@ app.post('/send-notification', (req, res) => {
         }
     });
 });
-
 
 try {
     io.on("connection", (socket:any) => {
