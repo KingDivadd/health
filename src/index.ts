@@ -1,6 +1,7 @@
 import express from 'express';
 import http from 'http';
 import webpush from 'web-push'
+const FCM = require('fcm-node')
 import { Server } from 'socket.io';
 import bodyParser from 'body-parser';
 import cors from 'cors';
@@ -65,6 +66,31 @@ app.post('/subscribe', (req, res) => {
     .then(()=> console.log('Push notification sent successfully'.blue.bold))
     .catch(err => console.error(err));
 });
+
+// const serverKey = 'BPLgD699xXsZ8qltNq9ojww0DDKgOkKioQDx_myIIkYix8Y3B7XTB8AHXIBRdrc76W_wN0rjWdL4-q1NHfjXzP4 ';
+// const deviceToken = '<DEVICE_TOKEN>';
+
+// const message = {
+//     to: deviceToken,
+//     notification: {
+//         title: 'Notification Test App',
+//         body: 'Message from Node.js app',
+//     },
+//     data: {
+//         title: 'OK',
+//         body: '{"name": "OK Google", "product_id": "123", "final_price": "0.00035"}',
+//     },
+//     };
+
+//     const fcm = new FCM(serverKey);
+
+//     fcm.send(message, (err:any, res:any) => {
+//     if (err) {
+//         console.error('Error sending notification:', err);
+//     } else {
+//         console.log('Notification sent successfully:', res);
+//     }
+// });
 
 
 try {
