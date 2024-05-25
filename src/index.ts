@@ -95,6 +95,7 @@ app.post('/send-notification', (req, res) => {
     });
 });
 
+
 try {
     io.on("connection", (socket:any) => {
         socket.on('send-chat-text', async (data: any, callback: any) => {         
