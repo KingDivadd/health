@@ -58,14 +58,14 @@ app.post('/subscribe', (req, res) => {
         icon: 'https://images.pexels.com/photos/5083013/pexels-photo-5083013.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=2',
         url: url
     };
-    res.status(201).json({data: payloadData});
-
+    
     const payload = JSON.stringify(payloadData);
-
+    
     webpush.sendNotification(subscription, payload)
     .then(()=> console.log('Push notification sent successfully'.blue.bold))
     .catch(err => console.error(err));
-
+    
+    res.status(201).json({data: payloadData, here: 'testing'});
     console.log('push notificatin sent')
 });
 
