@@ -65,6 +65,8 @@ app.post('/subscribe', (req, res) => {
     webpush.sendNotification(subscription, payload)
     .then(()=> console.log('Push notification sent successfully'.blue.bold))
     .catch(err => console.error(err));
+
+    console.log('push notificatin sent')
 });
 
 // const serverKey = 'BAoq8SpI6kX6dxoWvYtLAkrzOirNOK6vaWI93D-4y0A8zbRe6LEWgb208TnmEa-vK1N6gSKpiFP9JODKIY4ueD8';
