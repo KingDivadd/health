@@ -40,11 +40,11 @@ app.use(bodyParser.json());
 
 // handling web push
 
-if (!public_vapid_key || !private_vapid_key) {
+if (!public_vipid_key || !private_vipid_key) {
     throw new Error('Private and Public VAPID keys not found');
 }
 
-webpush.setVapidDetails('mailto:ireugbudavid@gmail.com', public_vapid_key, private_vapid_key);
+webpush.setVapidDetails('mailto:ireugbudavid@gmail.com', public_vipid_key, private_vipid_key);
 
 app.post('/subscribe', (req, res) => {
     const { subscription, url } = req.body;
