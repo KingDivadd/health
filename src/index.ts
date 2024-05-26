@@ -47,13 +47,13 @@ if (!public_vipid_key || !private_vipid_key) {
 webpush.setVapidDetails('mailto:ireugbudavid@gmail.com', public_vipid_key, private_vipid_key);
 
 app.post('/subscribe', (req, res) => {
-    const { subscription, url } = req.body;
+    const { subscription, url, payLoad } = req.body;
 
     console.log('Subscription:', subscription);
 
     const payloadData = {
-        title: 'Push Notification Title',
-        body: 'Notification body entered by David',
+        title: payLoad.title|| 'Push Notification Title',
+        body: payLoad.body ||'Notification body entered by David',
         icon: 'https://images.pexels.com/photos/5083013/pexels-photo-5083013.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=2',
         url: url
     };
