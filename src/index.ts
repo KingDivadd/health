@@ -49,7 +49,7 @@ webpush.setVapidDetails('mailto:ireugbudavid@gmail.com', public_vipid_key, priva
 app.post('/subscribe', (req, res) => {
     const { subscription, url, payLoad } = req.body;
 
-    console.log('Subscription:', subscription, 'payload : ',payLoad);
+    console.log( 'Testing : ', payLoad, 'Subscription::', subscription, 'payload : ',payLoad);
 
     const payloadData = {
         title: payLoad.title|| 'Push Notification Title',
