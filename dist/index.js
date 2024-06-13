@@ -222,6 +222,17 @@ try {
             // Emit the response back to the client
             socket.broadcast.emit('call-answered-response', notAnsweredResponse);
         });
+        // Listening for the call-rejected event
+        socket.on('call-rejected', (data, callback) => {
+            callback({ statusCode: 200, message: `You've rejected the call` });
+            // Process the data as needed, then emit a response event
+            const notAnsweredResponse = {
+                statusCode: 200,
+                message: `User rejected your call, please try again later`
+            };
+            // Emit the response back to the client
+            socket.broadcast.emit('call-rejected-response', notAnsweredResponse);
+        });
         socket.on('disconnect', () => {
             console.log('user disconnected');
         });
