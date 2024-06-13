@@ -64,6 +64,7 @@ class CaseNote {
                         patient_id: req.body.patient_id,
                         physician_id: physician_id,
                         title: "Case Note",
+                        status: "completed",
                         caseNote_id: new_case_note.caseNote_id,
                         details: `You've added a new case note for ${(_a = new_case_note.patient) === null || _a === void 0 ? void 0 : _a.last_name} ${(_b = new_case_note.patient) === null || _b === void 0 ? void 0 : _b.first_name}.`,
                         created_at: (0, currrentDateTime_1.default)(),
@@ -80,10 +81,11 @@ class CaseNote {
         this.updateCaseNote = (req, res, next) => __awaiter(this, void 0, void 0, function* () {
             const { assessment_or_diagnosis, current_medication, examination_findings, family_history, history_of_presenting_complains, past_medical_history, past_medication, plan, presenting_complaint, review_of_system, social_history, } = req.body;
             try {
+                return res.status(401).json({ err: "Feature has been suspend for now!" });
                 const { caseNote_id } = req.params;
-                if (!caseNote_id || caseNote_id.trim() == '') {
-                    return res.status(400).json({ err: 'Please provide the caseNote_id.' });
-                }
+                // if (!caseNote_id || caseNote_id.trim() == ''){
+                //     return res.status(400).json({err: 'Please provide the caseNote_id.'})
+                // }
                 const user = req.account_holder.user;
                 if (!user.physician_id || user.physician_id == null) {
                     return res.status(401).json({ err: 'Only doctors are allowed to update case note' });
@@ -113,6 +115,7 @@ class CaseNote {
         this.deleteCaseNote = (req, res, next) => __awaiter(this, void 0, void 0, function* () {
             try {
                 const { caseNote_id } = req.params;
+                return res.status(401).json({ err: "Feature has been suspend for now!" });
                 return res.status(401).json({ err: "Controller is closed atm." });
                 const case_note_exist = yield prisma.caseNote.findUnique({
                     where: { caseNote_id }

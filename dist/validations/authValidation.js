@@ -12,7 +12,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.videoChatValidation = exports.chatValidation = void 0;
+exports.videoCallNotAnsweredValidation = exports.videoChatValidation = exports.chatValidation = void 0;
 const joi_1 = __importDefault(require("joi"));
 class HelperValidation {
     constructor() {
@@ -132,4 +132,31 @@ const videoChatValidation = (data) => __awaiter(void 0, void 0, void 0, function
     }
 });
 exports.videoChatValidation = videoChatValidation;
+const videoCallNotAnsweredValidation = (data) => __awaiter(void 0, void 0, void 0, function* () {
+    try {
+        const schema = joi_1.default.object({
+            meetingId: joi_1.default.string().trim().required(),
+            physician_id: joi_1.default.string().trim().required(),
+            patient_id: joi_1.default.string().trim().required(),
+            caller_id: joi_1.default.string().trim().required,
+        });
+        const value = yield schema.validateAsync(Object.assign({}, data));
+        return ({
+            status: true,
+            data: value,
+            message: 'validated succesfully',
+            statusCode: 401,
+        });
+    }
+    catch (error) {
+        console.log(error);
+        return ({
+            status: false,
+            statusCode: 422,
+            message: error.details[0].message,
+            error: error.details[0].message,
+        });
+    }
+});
+exports.videoCallNotAnsweredValidation = videoCallNotAnsweredValidation;
 //# sourceMappingURL=authValidation.js.map

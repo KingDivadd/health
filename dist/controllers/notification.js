@@ -32,6 +32,51 @@ class Notification {
                 return res.status(500).json({ err: `Error fetching all notifications err: `, error: err });
             }
         });
+        this.filterNotification = (req, res, next) => __awaiter(this, void 0, void 0, function* () {
+            const { status } = req.body;
+            try {
+                const user = req.account_holder.user;
+                const patient_id = user.patient_id;
+                const physician_id = user.physician_id;
+                const notification = yield prisma.notification.findMany({
+                    where: {
+                        status, patient_id, physician_id
+                    }
+                });
+                return res.status(200).json({ nbHit: notification.length, notification });
+            }
+            catch (err) {
+                console.log(`Error fltering notifications err: `, err);
+                return res.status(500).json({ err: `Error filtering notifications err: `, error: err });
+            }
+        });
+        this.deleteNotification = (req, res, next) => __awaiter(this, void 0, void 0, function* () {
+            try {
+                const { notificationId } = req.params;
+                const user = req.account_holder.user;
+                const notificationExist = yield prisma.notification.findUnique({
+                    where: { notification_id: notificationId }
+                });
+                if (!notificationExist) {
+                    return res.status(404).json({ err: 'Selected notification not found, might be deleted.' });
+                }
+                if (notificationExist && ((notificationExist === null || notificationExist === void 0 ? void 0 : notificationExist.patient_id) !== user.patient_id || (notificationExist === null || notificationExist === void 0 ? void 0 : notificationExist.physician_id) !== user.physician_id)) {
+                    return res.status(401).json({ err: `You're not authorized to deleted selected notification.` });
+                }
+                const removeNotification = yield prisma.notification.delete({
+                    where: {
+                        notification_id: notificationId,
+                        patient_id: user.patient_id,
+                        physician_id: user.physician_id
+                    }
+                });
+                return res.status(200).json({ msg: "Selected notification deleted successfully." });
+            }
+            catch (err) {
+                console.log(`Error deleting selected err: `, err);
+                return res.status(500).json({ err: `Error deleting selected error err: `, error: err });
+            }
+        });
     }
 }
 exports.default = new Notification;

@@ -106,14 +106,16 @@ class Account {
                         updated_at: (0, currrentDateTime_1.default)(),
                     }
                 });
+                // the notification sent to the patient
                 const notification = yield prisma.notification.create({
                     data: {
                         appointment_id: null,
                         patient_id: (new_transaction === null || new_transaction === void 0 ? void 0 : new_transaction.patient_id) || null,
                         physician_id: (new_transaction === null || new_transaction === void 0 ? void 0 : new_transaction.physician_id) || null,
                         title: "Earnings",
+                        status: "completed",
                         caseNote_id: null,
-                        details: `You have successfully deposited  ${new_transaction === null || new_transaction === void 0 ? void 0 : new_transaction.amount} }.`,
+                        details: `You have successfully deposited ${new_transaction === null || new_transaction === void 0 ? void 0 : new_transaction.amount} }.`,
                         created_at: (0, currrentDateTime_1.default)(),
                         updated_at: (0, currrentDateTime_1.default)(),
                     }
@@ -178,6 +180,20 @@ class Account {
                         patient_id: patient_id || "",
                         physician_id: physician_id || "",
                         account_id: user_account.account_id,
+                        created_at: (0, currrentDateTime_1.default)(),
+                        updated_at: (0, currrentDateTime_1.default)(),
+                    }
+                });
+                // notification sent to the patient or physician
+                const notification = yield prisma.notification.create({
+                    data: {
+                        appointment_id: null,
+                        patient_id: (new_transaction === null || new_transaction === void 0 ? void 0 : new_transaction.patient_id) || null,
+                        physician_id: (new_transaction === null || new_transaction === void 0 ? void 0 : new_transaction.physician_id) || null,
+                        title: "Earnings",
+                        status: "completed",
+                        caseNote_id: null,
+                        details: `You have successfully withdrawn ${new_transaction === null || new_transaction === void 0 ? void 0 : new_transaction.amount} }.`,
                         created_at: (0, currrentDateTime_1.default)(),
                         updated_at: (0, currrentDateTime_1.default)(),
                     }

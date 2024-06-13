@@ -19,6 +19,14 @@ const prisma = new client_1.PrismaClient();
 const { redisValueUpdate } = redisFunc_1.default;
 class Users {
     constructor() {
+        this.testConnection = (req, res, next) => __awaiter(this, void 0, void 0, function* () {
+            try {
+                return res.status(200).json({ msg: "Server connected successfully." });
+            }
+            catch (err) {
+                return res.status(500).json({ err: 'Error testing server connection' });
+            }
+        });
         this.loggedInPatient = (req, res, next) => __awaiter(this, void 0, void 0, function* () {
             try {
                 const user = req.account_holder.user;

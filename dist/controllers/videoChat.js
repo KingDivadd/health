@@ -26,7 +26,7 @@ class VideoChat {
                 if (!appointment_id || appointment_id.trim() == "") {
                     return res.status(400).json({ err: 'Please provide the appointment id' });
                 }
-                const options = { expiresIn: "45m", algorithm: "HS256" };
+                const options = { expiresIn: "23h", algorithm: "HS256" };
                 const payload = {
                     appointment_id,
                     apikey: constants_1.videosdk_api_key,
@@ -60,7 +60,7 @@ class VideoChat {
                 let call_receiver = patient_id ? appointment.physician_id : (physician_id ? appointment.patient_id : null);
                 let caller = patient_id ? patient_id : (physician_id ? physician_id : null);
                 if (call_receiver == null) {
-                    return res.status(400).json({ err: 'Unable to determine the call receiver' });
+                    return res.status(400).json({ err: 'Unable to determine the call receiver.' });
                 }
                 const response = yield axios_1.default.post(`${constants_1.videosdk_endpoint}/v2/rooms`, { userMeetingId: appointment_id }, {
                     headers: {
@@ -75,6 +75,7 @@ class VideoChat {
                     patient_id: appointment.patient_id,
                     physician_id: appointment.physician_id
                 });
+                console.log(response.data);
                 return res.status(200).json(response.data);
             }
             catch (err) {

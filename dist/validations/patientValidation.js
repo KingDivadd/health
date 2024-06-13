@@ -148,7 +148,7 @@ class PatientValidation {
             try {
                 const mode_of_consult_enum = ['physical', 'virtual'];
                 const appointment_type_enum = ['chat', 'video_call'];
-                const validate_create_appointment = joi_1.default.object({
+                const schema = joi_1.default.object({
                     physician_id: joi_1.default.string().trim().required(),
                     mode_of_consult: joi_1.default.string().valid('virtual', 'physical').required(),
                     appointment_type: joi_1.default.when('mode_of_consult', {
@@ -159,7 +159,7 @@ class PatientValidation {
                     complain: joi_1.default.string().trim().required(),
                     time: joi_1.default.number().required()
                 });
-                const { error: validation_error } = validate_create_appointment.validate(req.body);
+                const { error: validation_error } = schema.validate(req.body);
                 if (validation_error) {
                     const error_message = validation_error.message.replace(/"/g, '');
                     return res.status(400).json({ err: error_message });
@@ -169,6 +169,23 @@ class PatientValidation {
             catch (err) {
                 console.log(err);
                 return res.status(422).json({ err: 'Error during book appoitment validation.' });
+            }
+        };
+        this.filterNotificationValidation = (req, res, next) => {
+            try {
+                const schema = joi_1.default.object({
+                    status: joi_1.default.string().trim().valid('pending', 'completed').required(),
+                });
+                const { error: validation_error } = schema.validate(req.body);
+                if (validation_error) {
+                    const error_message = validation_error.message.replace(/"/g, '');
+                    return res.status(400).json({ err: error_message });
+                }
+                next();
+            }
+            catch (err) {
+                console.log(err);
+                return res.status(422).json({ err: 'Error during filtering notification validation.' });
             }
         };
     }

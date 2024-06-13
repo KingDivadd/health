@@ -17,14 +17,16 @@ const videoChat_1 = __importDefault(require("../controllers/videoChat"));
 const caseNote_1 = __importDefault(require("../controllers/caseNote"));
 const pushNotification_1 = __importDefault(require("../controllers/pushNotification"));
 const chatValidation_1 = __importDefault(require("../validations/chatValidation"));
+const notification_1 = __importDefault(require("../controllers/notification"));
 const router = express_1.default.Router();
+const { allNotifications, deleteNotification, filterNotification } = notification_1.default;
 const { endMeetingSessionValid, removeParticipantValid } = chatValidation_1.default;
 const { webPushNotification } = pushNotification_1.default;
 const { physicianSetupProfileValidation, physicianDataValidation, physicianLoginValidation, physicianSignupValidation, filterPhysicianValidation, updateAppointmentValidation, createCaseNoteValid, updateCaseNoteValid, cancelAppointmentValidation } = physicianValidation_1.default;
 const { isRegisteredPatient, isRegisteredPhysician, emailExist, verifyAuthId, verifyOtpId, isLoggedIn, } = auth_1.default;
 const { patientSignup, physicianSignup, patientLogin, physicianLogin, generateUserOTP, signupGenerateUserOTP, verifyPatientOTP, verifyPhysicianOTP, resetPatientPassword, resetPhysicianPassword, } = authentication_1.default;
-const { patientUpdateCompletionValidation, patientOrgProfileCompletionValidation, patientEditValidation, patientLoginValidation, patientSignupValidation, encryptedDataValidation, bookAppointmentValidation, } = patientValidation_1.default;
-const { loggedInPatient, loggedInPhysician, editPatientData, signupUpdatePatientData, editPhysicianData, singupUpdatePhysicianData, filterPhysicians, allPhysicians } = users_1.default;
+const { patientUpdateCompletionValidation, patientOrgProfileCompletionValidation, patientEditValidation, patientLoginValidation, patientSignupValidation, encryptedDataValidation, bookAppointmentValidation, filterNotificationValidation } = patientValidation_1.default;
+const { loggedInPatient, loggedInPhysician, editPatientData, signupUpdatePatientData, editPhysicianData, singupUpdatePhysicianData, filterPhysicians, allPhysicians, testConnection } = users_1.default;
 const { genOtpValidation, passwordUpdateValidation, verifyOtpValidation } = authValidation_1.default;
 const { openChat, getChats, clearChat } = chat_1.default;
 const { decryptDepositData, decryptWithdrawalData, encryptData, account, accountTransaction } = userAccount_1.default;
@@ -90,7 +92,13 @@ router.route('/all-case-note/:patient_id').get(isLoggedIn, allCaseNote);
 router.route('/add-case-note').post(isLoggedIn, createCaseNoteValid, createCaseNote);
 router.route('/update-case-note/:caseNote_id').patch(isLoggedIn, updateCaseNoteValid, updateCaseNote);
 router.route('/delete-case-note/:caseNote_id').delete(isLoggedIn, deleteCaseNote);
-// Push Notofication
+// Push Notification
 router.route('/subscribe').post(webPushNotification);
+// Notification 
+router.route('/all-notifications').get(isLoggedIn, allNotifications);
+router.route('/filter-notifications').post(isLoggedIn, filterNotificationValidation, filterNotification);
+router.route('/delete-notification/:notificationId').delete(isLoggedIn, deleteNotification);
+// Test route
+router.route('/test-connection').get(testConnection);
 exports.default = router;
 //# sourceMappingURL=index.js.map

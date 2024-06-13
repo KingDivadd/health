@@ -83,6 +83,8 @@ class VideoChat {
             physician_id: appointment.physician_id
         })
 
+        
+
         console.log(response.data)
         return res.status(200).json(response.data);
 

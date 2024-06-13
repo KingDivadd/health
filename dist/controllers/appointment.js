@@ -51,7 +51,7 @@ class Appointment {
                         patient_id: patient_id,
                     },
                     orderBy: {
-                        time: 'desc'
+                        created_at: 'desc'
                     },
                     take: 1
                 });
@@ -65,7 +65,7 @@ class Appointment {
                 // Create the appointment
                 const new_appointment_data = Object.assign(Object.assign({}, req.body), { time: req.body.time });
                 const new_appointment = yield prisma.appointment.create({
-                    data: new_appointment_data,
+                    data: req.body,
                     include: {
                         patient: {
                             select: { last_name: true, first_name: true, other_names: true, avatar: true }
@@ -165,7 +165,6 @@ class Appointment {
                     return res.status(200).json({ msg: 'Appointment accepted', appointment: updateAppointment });
                 }
                 else if (updateAppointment && updateAppointment.patient && status === 'denied') {
-                    // send mail appointment has been denied.
                     (0, email_1.sendMailAppointmentDenied)(updateAppointment.physician, updateAppointment.patient, appointment);
                     return res.status(200).json({ msg: 'Appointment denied', appointment: updateAppointment });
                 }
@@ -205,6 +204,7 @@ class Appointment {
                             patient_id: cancelAppointment.patient_id,
                             physician_id: null,
                             title: "Appointment",
+                            status: "completed",
                             caseNote_id: null,
                             details: `Your appointment with Dr ${(_j = cancelAppointment.physician) === null || _j === void 0 ? void 0 : _j.last_name} ${(_k = cancelAppointment.physician) === null || _k === void 0 ? void 0 : _k.first_name} scheduled for ${(0, currrentDateTime_1.readableDate)(Number(cancelAppointment.time))} has been cancelled`,
                             created_at: (0, currrentDateTime_1.default)(),
@@ -216,6 +216,7 @@ class Appointment {
                             patient_id: null,
                             physician_id: cancelAppointment.physician_id,
                             title: "Appointment",
+                            status: "completed",
                             caseNote_id: null,
                             details: `You've cancelld your appointment with ${(_l = cancelAppointment.patient) === null || _l === void 0 ? void 0 : _l.last_name} ${(_m = cancelAppointment.patient) === null || _m === void 0 ? void 0 : _m.first_name} scheduled for ${(0, currrentDateTime_1.readableDate)(Number(cancelAppointment.time))}.`,
                             created_at: (0, currrentDateTime_1.default)(),
