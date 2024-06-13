@@ -60,16 +60,19 @@ class VideoChat {
             let caller = patient_id ? patient_id : (physician_id ? physician_id : null)
     
             if (call_receiver == null) {
-                return res.status(400).json({ err: 'Unable to determine the call receiver' });
+                return res.status(400).json({ err: 'Unable to determine the call receiver.' });
             }
+
+            console.log(1)
             
             const response = await axios.post(`${videosdk_endpoint}/v2/rooms`, {userMeetingId: appointment_id},
-            {
-                headers: {
+                {
+                    headers: {
                     Authorization: token,
-                },
-            }
-        );
+                    },
+                    }
+                    );
+                console.log(2, response)
         
         // now add a socket connection
 
@@ -82,6 +85,7 @@ class VideoChat {
             physician_id: appointment.physician_id
         })
 
+        console.log(response.data)
         return res.status(200).json(response.data);
 
         }catch (err:any) {
