@@ -127,31 +127,37 @@ export const videoChatValidation = async ( data:any) => {
     }
 }
 
-export const videoValidation = async ( data:any) => {
+export const videoValidation = async (data:any) => {
     try {
+      // Ensure data is defined
+        if (!data) {
+            throw new Error('Data is undefined or null');
+        }
+    
+        // Define the validation schema
         const schema = Joi.object({
             meeting_id: Joi.string().trim().required(),
             receiver_id: Joi.string().trim().required(),
             caller_id: Joi.string().trim().required(),
             token: Joi.string().trim().required(),
-        })
-        
-        
-        const value = await schema.validateAsync({...data});
-
-        return ({
+        });
+    
+        // Validate the data against the schema
+        const value = await schema.validateAsync(data);
+    
+        return {
             status: true,
             data: value,
-            message: 'validated succesfully',
-            statusCode: 401,
-        });
+            message: 'validated successfully',
+            statusCode: 200,
+        };
         } catch (error:any) {
-            console.log(error)
-            return ({
+        console.log(error);
+        return {
             status: false,
             statusCode: 422,
-            message: error.details[0].message,
-            error: error.details[0].message,
-        });
+            message: error.details ? error.details[0].message : error.message,
+            error: error.details ? error.details[0].message : error.message,
+        };
     }
-}
+};
