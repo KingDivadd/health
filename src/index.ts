@@ -172,6 +172,7 @@ try {
         // FOR VIDEO CALL
 
         // WHEN CALL IS NOT ANSWERED
+        
         socket.on(`call-not-answered`, async(data: any, callback: any)=>{
             // const validation = await videoCallNotAnsweredValidation(data)
             // if(validation?.statusCode == 422){
@@ -180,7 +181,18 @@ try {
             //     return;
             // }
             
-            console.log('received ::  ',data)
+            console.log('received ::  ', data)
+
+            socket.emit(`call-not-answered-response`, {
+                statusCode: 200,
+                message: "Message sent succesfully,",
+            });
+
+            socket.broadcast.emit(`call-not-answered-response`, {
+                statusCode: 200,
+                message: "The user you are trying to call is not available at the moment, please try again later thank you."
+            })
+
             socket.emit(`call-not-answered-response`, {
                 statusCode: 200,
                 message: "The user you are trying to call is not available at the moment, please try again later thank you."
