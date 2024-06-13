@@ -237,26 +237,30 @@ try {
         
     // });
 
+    
+    
     io.on('connection', (socket:any) => {
-        console.log('A user connected');
+        console.log('a user connected');
     
-        socket.on('call-not-answered', async (data:any, callback:any) => {
-            console.log('received ::  ', data);
-            
-            callback({
-                statusCode: 200,
-                message: "The user you are trying to call is not available at the moment, please try again later thank you."
-            });
+        // Listening for the call-not-answered event
+        socket.on('call-not-answered', (data:any, callback:any) => {
+            console.log('call-not-answered event received:', data);
     
-            socket.emit('call-not-answered-response', {
+            // Process the data as needed, then emit a response event
+            const response = {
                 statusCode: 200,
-                message: "The user you are trying to call is not available at the moment, please try again later thank you."
-            });
+                message: 'Call not answered event processed successfully'
+            };
     
-            socket.broadcast.emit('call-not-answered-response', {
-                statusCode: 200,
-                message: "The user you are trying to call is not available at the moment, please try again later thank you."
-            });
+            // Emit the response back to the client
+            socket.emit('call-not-answered-response', response);
+    
+            // Call the callback function with the response if necessary
+            if (callback) callback(response);
+        });
+    
+        socket.on('disconnect', () => {
+            console.log('user disconnected');
         });
     });
     
