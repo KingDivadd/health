@@ -205,11 +205,22 @@ try {
             callback({ statusCode: 200, message: 'Call timed out.' });
             // Process the data as needed, then emit a response event
             const notAnsweredResponse = {
-                title: 'normal response',
+                statusCode: 200,
                 message: `User not available now, please try again later`
             };
             // Emit the response back to the client
             socket.broadcast.emit('call-not-answered-response', notAnsweredResponse);
+        });
+        // Listening for the call-answered event
+        socket.on('call-answered', (data, callback) => {
+            callback({ statusCode: 200, message: `You've accepted the call` });
+            // Process the data as needed, then emit a response event
+            const notAnsweredResponse = {
+                statusCode: 200,
+                message: `User not available now, please try again later`
+            };
+            // Emit the response back to the client
+            socket.broadcast.emit('call-answered-response', notAnsweredResponse);
         });
         socket.on('disconnect', () => {
             console.log('user disconnected');
