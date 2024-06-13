@@ -232,7 +232,7 @@ redis_client.on('error', (err) => {
     console.log("Error encountered while connecting to redis.".red.bold, err);
 });
 redis_client.on('connect', () => {
-    console.log(`Redis connection established successfully.`.cyan.bold);
+    console.log(`Redis connection established successfully`.cyan.bold);
 });
 
 
