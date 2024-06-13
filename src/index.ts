@@ -16,7 +16,7 @@ import handleDatabaseError from './middlewares/databaseUnavailable';
 import { CORS_OPTION, port, redis_url, vapid_private_key, vapid_public_key } from './helpers/constants';
 import connectToMongoDB from './config/mongodb';
 import chat from './controllers/chat';
-import authValidation, { chatValidation, videoChatValidation } from './validations/authValidation';
+import authValidation, { chatValidation, videoCallNotAnsweredValidation, videoChatValidation } from './validations/authValidation';
 
 const {validateChat, verifyUserAuth, createChat, accountDeduction, accountAddition} = chat
 
@@ -173,8 +173,15 @@ try {
 
         // WHEN CALL IS NOT ANSWERED
         socket.on(`call-not-answered`, async(data: any, callback: any)=>{
+            const validation = await videoCallNotAnsweredValidation(data)
+            if(validation?.statusCode == 422){
+                console.log(validation);
+                callback({status: false,statusCode: 422,message: validation.message,error: validation.message});
+                return;
+            }
             
-            socket.broadcast.emit(`call-not-answered`, {
+            console.log('received ::  ',data)
+            socket.broadcast.emit(`call-not-answered-f883c417-ee36-4227-b03b-e7315a3e6468`, {
                 statusCode: 200,
                 message: "The user you are trying to call is not available at the moment, please try again later thank you."
             })
@@ -193,7 +200,6 @@ try {
 
             const userAuth = await verifyUserAuth(data.auth_token);
             if (userAuth.statusCode === 401) {
-
                 socket.emit(`${user_id}`, {
                     statusCode: 401,
                     message: userAuth.message,
