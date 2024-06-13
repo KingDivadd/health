@@ -181,7 +181,7 @@ try {
             // }
             
             console.log('received ::  ',data)
-            socket.emit(`call-not-answered`, {
+            socket.emit(`call-not-answered-response`, {
                 statusCode: 200,
                 message: "The user you are trying to call is not available at the moment, please try again later thank you."
             })
