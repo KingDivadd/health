@@ -19,7 +19,7 @@ class VideoChat {
                 return res.status(400).json({err: 'Please provide the appointment id'})
             }
 
-            const options = { expiresIn: "45m", algorithm: "HS256" };
+            const options = { expiresIn: "23h", algorithm: "HS256" };
         
             const payload = {
                 appointment_id,
