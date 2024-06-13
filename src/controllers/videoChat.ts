@@ -63,16 +63,14 @@ class VideoChat {
                 return res.status(400).json({ err: 'Unable to determine the call receiver.' });
             }
 
-            console.log(1)
             
             const response = await axios.post(`${videosdk_endpoint}/v2/rooms`, {userMeetingId: appointment_id},
                 {
                     headers: {
-                    Authorization: token,
+                        Authorization: token,
                     },
-                    }
-                    );
-                console.log(2, response)
+                }
+            );
         
         // now add a socket connection
 

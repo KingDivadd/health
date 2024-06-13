@@ -169,7 +169,17 @@ try {
             }
         });
 
-        // for video call
+        // FOR VIDEO CALL
+
+        // WHEN CALL IS NOT ANSWERED
+        socket.on(`call-not-answered`, async(data: any, callback: any)=>{
+            
+            socket.broadcast.emit(`call-not-answered`, {
+                statusCode: 200,
+                message: "The user you are trying to call is not available at the moment, please try again later thank you."
+            })
+        })
+
         socket.on(`callAccepted`, async(data:any, callback:any)=>{
             const {meetingId, patient_id, is_patient, physician_id, is_physician } = data
             const user_id = data.is_physician ? data.physician_id : (data.is_patient ? data.patient_id : null);
