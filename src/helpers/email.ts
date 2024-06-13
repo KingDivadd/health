@@ -1,4 +1,5 @@
 import { sendgrid_api_key } from "./constants"
+import { readableDate } from "./currrentDateTime"
 
 const FROM_EMAIL = 'contact@ohealthng.com'
 
@@ -15,7 +16,8 @@ export async function sendMailOtp (email: String, otp: String) {
     to: email,
     from: { email: FROM_EMAIL, name: FROM_NAME},
     subject: 'Ohealth Verification Code',
-    html: `<html lang="en">
+    html: `
+    <html lang="en">
     <head>
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -64,7 +66,298 @@ export async function sendMailOtp (email: String, otp: String) {
         console.log(error)
         
     }
-     
+    
+}
+
+// this email will be sent to the physician
+export async function sendMailBookingAppointment (physician:any, patient:any, appointment:any) {
+
+    try {
+
+
+    sgMail.setApiKey(sendgrid_api_key)
+
+    const msg = {
+    to: physician.email,
+    from: { email: FROM_EMAIL, name: FROM_NAME},
+    subject: 'New Appointment Booking',
+    html: `
+    <html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Appointment Booking</title>
+        <style>
+            body {
+                text-align: center;
+            }
+    
+            div {
+                display: inline-block;
+                text-align: left;
+            }
+        </style>
+    </head>
+    <body>
+        <div>
+            <p>Hello Dr ${physician.last_name}</p>
+            <p> ${patient.last_name} ${patient.first_name} has booked an appointment with you scheduled for ${readableDate(parseInt(appointment.time))}</p>
+    
+            <p>Please confirm your availability for this appointment.</p>
+
+            <p>Best regards.</p>
+            <p>Ohealth</p>
+
+
+    
+        </div>
+    </body>
+    </html>`,
+    }
+    sgMail
+    .send(msg)
+    .then(() => {
+        console.log(`Email sent to ${physician.email}`.yellow.bold)
+    })
+    .catch((error: any) => {
+        console.error(`${error}`.red.bold)
+    })
+
+        
+        
+    } catch (error) {
+
+        console.log(error)
+        
+    }
+
+    
+}
+
+// This email will be sent to the patient
+export async function sendMailAcceptedAppointment (physician:any, patient:any, appointment:any) {
+
+    try {
+    sgMail.setApiKey(sendgrid_api_key)
+
+    const msg = {
+    to: patient.email,
+    from: { email: FROM_EMAIL, name: FROM_NAME},
+    subject: 'Appointment Booking',
+    html: `
+    <html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Appointment Booking</title>
+        <style>
+            body {
+                text-align: center;
+            }
+    
+            div {
+                display: inline-block;
+                text-align: left;
+            }
+        </style>
+    </head>
+    <body>
+        <div>
+            <p>Hello ${patient.last_name}</p>
+            <p> Your appointment with Dr ${physician.last_name} for the complain ${appointment.complain} scheduled for ${readableDate(parseInt(appointment.time))} has been accepted. </p>
+    
+            <p>Best regards,</p>
+            <p>Ohealth.</p>
+    
+        </div>
+    </body>
+    </html>`,
+    }
+    sgMail
+    .send(msg)
+    .then(() => {
+        console.log(`Email sent to ${physician.email}`.yellow.bold)
+    })
+    .catch((error: any) => {
+        console.error(`${error}`.red.bold)
+    })
+
+    
+    
+        
+    } catch (error) {
+
+        console.log(error)
+        
+    }
+    
+}
+
+// This email will be sent to the Patient
+export async function sendMailAppointmentDenied (physician:any, patient:any, appointment:any) {
+
+    try {
+    sgMail.setApiKey(sendgrid_api_key)
+
+    const msg = {
+    to: patient.email,
+    from: { email: FROM_EMAIL, name: FROM_NAME},
+    subject: 'Appointment Denied',
+    html: `
+    <html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Appointment Booking</title>
+        <style>
+            body {
+                text-align: center;
+            }
+    
+            div {
+                display: inline-block;
+                text-align: left;
+            }
+        </style>
+    </head>
+    <body>
+        <div>
+            <p>Hello ${patient.last_name}</p>
+            <p> Your appointment with Dr ${physician.last_name} for the complain ${appointment.complain} scheduled for ${readableDate(parseInt(appointment.time))} has been denied. </p>
+    
+            <p>Best regards,</p>
+            <p>Ohealth.</p>
+    
+        </div>
+    </body>
+    </html>`,
+    }
+    sgMail
+    .send(msg)
+    .then(() => {
+        console.log(`Email sent to ${patient.email}`.yellow.bold)
+    })
+    .catch((error: any) => {
+        console.error(`${error}`.red.bold)
+    })
+
+    
+    
+        
+    } catch (error) {
+
+        console.log(error)
+        
+    }
+    
+}
+
+export async function sendMailAppointmentCancelled (physician:any, patient:any, appointment:any) {
+
+    try {
+    sgMail.setApiKey(sendgrid_api_key)
+
+    const msg = {
+    to: patient.email,
+    from: { email: FROM_EMAIL, name: FROM_NAME},
+    subject: 'Appointment Cancellation',
+    html: `
+    <html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Appointment Booking</title>
+        <style>
+            body {
+                text-align: center;
+            }
+    
+            div {
+                display: inline-block;
+                text-align: left;
+            }
+        </style>
+    </head>
+    <body>
+        <div>
+            <p>Hello ${patient.last_name}</p>
+            <p> Your appointment with Dr ${physician.last_name} for the complain ${appointment.complain} scheduled for ${readableDate(parseInt(appointment.time))} has been cancelled. </p>
+    
+            <p>Best regards,</p>
+            <p>Ohealth.</p>
+    
+        </div>
+    </body>
+    </html>`,
+    }
+    sgMail
+    .send(msg)
+    .then(() => {
+        console.log(`Email sent to ${patient.email}`.yellow.bold)
+    })
+    .catch((error: any) => {
+        console.error(`${error}`.red.bold)
+    })    
+        
+    } catch (error) {
+
+        console.log(error)
+        
+    }
+    
+}
+export async function sendMailAppointmentCancelledByPatient (physician:any, patient:any, appointment:any) {
+
+    try {
+    sgMail.setApiKey(sendgrid_api_key)
+
+    const msg = {
+    to: physician.email,
+    from: { email: FROM_EMAIL, name: FROM_NAME},
+    subject: 'Appointment Cancellation',
+    html: `
+    <html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Appointment Booking</title>
+        <style>
+            body {
+                text-align: center;
+            }
+    
+            div {
+                display: inline-block;
+                text-align: left;
+            }
+        </style>
+    </head>
+    <body>
+        <div>
+            <p>Hello Dr ${physician.last_name}</p>
+            <p> Your appointment with ${patient.last_name} ${patient.first_name} for the complain ${appointment.complain} scheduled for ${readableDate(parseInt(appointment.time))} has been cancelled. </p>
+    
+            <p>Best regards,</p>
+            <p>Ohealth.</p>
+    
+        </div>
+    </body>
+    </html>`,
+    }
+    sgMail
+    .send(msg)
+    .then(() => {
+        console.log(`Email sent to ${physician.email}`.yellow.bold)
+    })
+    .catch((error: any) => {
+        console.error(`${error}`.red.bold)
+    })    
+        
+    } catch (error) {
+
+        console.log(error)
+        
+    }
     
 }
 

@@ -120,13 +120,7 @@ class PhysicianValidation {
         };
         this.filterPhysicianValidation = (req, res, next) => {
             try {
-                const gender_enum = ['male', 'female'];
-                const registered_as = ['specialist', 'hospital', 'laboratory', 'pharmacy'];
-                const speciality = ['dentist', 'general_doctor', 'nutritionist', 'oncologist', 'surgeon'];
                 const validate_physician_data = joi_1.default.object({
-                    name: joi_1.default.string().allow('').optional(),
-                    gender_enum: joi_1.default.string().allow('').valid(...gender_enum).optional(),
-                    registered_as: joi_1.default.string().allow('').optional(),
                     speciality: joi_1.default.string().allow('').optional(),
                 });
                 const { error: validation_error } = validate_physician_data.validate(req.body);
@@ -144,7 +138,7 @@ class PhysicianValidation {
         this.filterAppointmentValidation = (req, res, next) => {
             try {
                 const schema = joi_1.default.object({
-                    status: joi_1.default.string().trim().allow('').valid('accepted', 'denieds').optional(),
+                    status: joi_1.default.string().trim().allow('').valid('pending', 'accepted', 'denied', 'cancelled').optional(),
                 });
                 const { error: validation_error } = schema.validate(req.body);
                 if (validation_error) {
@@ -158,13 +152,89 @@ class PhysicianValidation {
                 return res.status(422).json({ err: 'Error during filter physician data validation' });
             }
         };
-        this.acceptAppointmentValidation = (req, res, next) => {
+        this.updateAppointmentValidation = (req, res, next) => {
             try {
                 const validate_appointment = joi_1.default.object({
                     appointment_id: joi_1.default.string().trim().required(),
                     status: joi_1.default.string().trim().valid('accepted', 'denied').required()
                 });
                 const { error: validation_error } = validate_appointment.validate(req.body);
+                if (validation_error) {
+                    const error_message = validation_error.message.replace(/"/g, '');
+                    return res.status(400).json({ err: error_message });
+                }
+                next();
+            }
+            catch (err) {
+                console.log(err);
+                return res.status(422).json({ err: 'Error during accepting appoitment validation.' });
+            }
+        };
+        this.cancelAppointmentValidation = (req, res, next) => {
+            try {
+                const validate_appointment = joi_1.default.object({
+                    appointment_id: joi_1.default.string().trim().required(),
+                    status: joi_1.default.string().trim().valid('cancelled').required()
+                });
+                const { error: validation_error } = validate_appointment.validate(req.body);
+                if (validation_error) {
+                    const error_message = validation_error.message.replace(/"/g, '');
+                    return res.status(400).json({ err: error_message });
+                }
+                next();
+            }
+            catch (err) {
+                console.log(err);
+                return res.status(422).json({ err: 'Error during accepting appoitment validation.' });
+            }
+        };
+        this.createCaseNoteValid = (req, res, next) => {
+            try {
+                const schema = joi_1.default.object({
+                    appointment_id: joi_1.default.string().trim().required(),
+                    patient_id: joi_1.default.string().trim().required(),
+                    assessment_or_diagnosis: joi_1.default.string().trim().allow(''),
+                    current_medication: joi_1.default.string().trim().allow(''),
+                    examination_findings: joi_1.default.string().trim().allow(''),
+                    family_history: joi_1.default.string().trim().allow(''),
+                    history_of_presenting_complains: joi_1.default.string().trim().allow(''),
+                    past_medical_history: joi_1.default.string().trim().allow(''),
+                    past_medication: joi_1.default.string().trim().allow(''),
+                    plan: joi_1.default.string().trim().allow(''),
+                    presenting_complaint: joi_1.default.string().trim().allow(''),
+                    review_of_system: joi_1.default.string().trim().allow(''),
+                    social_history: joi_1.default.string().trim().allow(''),
+                    prescription: joi_1.default.string().trim().allow(''),
+                    test: joi_1.default.string().trim().allow('')
+                });
+                const { error: validation_error } = schema.validate(req.body);
+                if (validation_error) {
+                    const error_message = validation_error.message.replace(/"/g, '');
+                    return res.status(400).json({ err: error_message });
+                }
+                next();
+            }
+            catch (err) {
+                console.log(err);
+                return res.status(422).json({ err: 'Error during accepting appoitment validation.' });
+            }
+        };
+        this.updateCaseNoteValid = (req, res, next) => {
+            try {
+                const schema = joi_1.default.object({
+                    assessment_or_diagnosis: joi_1.default.string().trim().allow(''),
+                    current_medication: joi_1.default.string().trim().allow(''),
+                    examination_findings: joi_1.default.string().trim().allow(''),
+                    family_history: joi_1.default.string().trim().allow(''),
+                    history_of_presenting_complains: joi_1.default.string().trim().allow(''),
+                    past_medical_history: joi_1.default.string().trim().allow(''),
+                    past_medication: joi_1.default.string().trim().allow(''),
+                    plan: joi_1.default.string().trim().allow(''),
+                    presenting_complaint: joi_1.default.string().trim().allow(''),
+                    review_of_system: joi_1.default.string().trim().allow(''),
+                    social_history: joi_1.default.string().trim().allow('')
+                });
+                const { error: validation_error } = schema.validate(req.body);
                 if (validation_error) {
                     const error_message = validation_error.message.replace(/"/g, '');
                     return res.status(400).json({ err: error_message });

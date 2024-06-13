@@ -45,6 +45,7 @@ class Authentication {
             }
             const x_id_key = await redisAuthStore(user, 60 * 60 * 23)
             res.setHeader('x-id-key', x_id_key)
+            console.log('user ',user)
             return res.status(201).json({msg: 'User created successfully, proceed to continuing setting up your profile'})
         } catch (err: any) {
             console.error('Error during patient signup : ', err);
@@ -211,6 +212,7 @@ class Authentication {
             const [ user, auth_id] = await Promise.all([ user_promise, auth_id_promise ])
 
             res.setHeader('x-id-key', auth_id)
+
 
             return res.status(200).json({ msg: 'Verification successful' })
 

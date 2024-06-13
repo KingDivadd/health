@@ -3,7 +3,11 @@ import { CustomRequest, UserInterface } from "../helpers/interface";
 import { PrismaClient } from '@prisma/client'
 import ChatModel from "../models/chatCollection";
 import { Redis } from 'ioredis'
-import { chat_amount, general_physician_percentage, jwt_secret, redis_url, specialist_percentage } from "../helpers/constants";
+import {general_physician_chat_amount, 
+        general_physician_chat_percentage, 
+        specialist_physician_chat_amount, 
+        specialist_physician_chat_percentage, jwt_secret, redis_url } from "../helpers/constants";
+
 const jwt = require('jsonwebtoken')
 
 
@@ -32,7 +36,7 @@ class Chat {
                 return res.status(401).json({err: `You are not allowed to view another user's chat messages`})
             }
 
-            const chats = await ChatModel.find({patient_id , physician_id })
+            const chats = await ChatModel.find({patient_id, physician_id})
 
             return res.status(200).json({nbHit: chats.length, chats})
 
@@ -138,27 +142,53 @@ class Chat {
 
     accountDeduction = async (userAuth:any, data: any) => {
         try {
-            if (userAuth.patient_id){
-                const patient_id = data.patient_id;
-                
-                const patient = await prisma.account.findFirst({
-                    where: { patient_id },
-                });
-                if (!patient) {
-                    return {statusCode: 404, message: 'Patient account not found'}
-                }
-                if (patient?.available_balance < Number(chat_amount)){
+            // if the sender is a physician, nothing happens to the patient account balance.
+            if (userAuth.physician_id){
+                return {statusCode: 200, message: 'Physician Account remained as it were'}
+            }
+            
+            // only deduct from patient's account if the sender is patient
+            const patient_id = data.patient_id;
+            const physician_id = data.physician_id
+
+            const [patient, physician] = await Promise.all([ prisma.account.findFirst({ where: { patient_id } }), 
+                                                                prisma.physician.findFirst({where: { physician_id }})])
+            
+            if (!patient) {
+                return {statusCode: 404, message: 'Patient account not found'}
+            }
+            if (!physician) {
+                return {statusCode: 404, message: 'Physician not found'}
+            }
+
+            // if the physician is a specialist
+            if (physician.speciality  !== 'general_doctor'){ 
+
+
+                if (patient?.available_balance < Number(specialist_physician_chat_amount)){
                     return {statusCode: 401, message: 'Available balace is low, please top up your balance' }
                 }
                 const update_account = await prisma.account.update({
                     where: {account_id: patient.account_id},
-                    data: {available_balance: patient.available_balance - Number(chat_amount)}
+                    data: {available_balance: patient.available_balance - Number(specialist_physician_chat_amount)}
+                })
+                
+                // if the physician is a general_doctor
+            }else if (physician.speciality === 'general_doctor'){
+                if (patient?.available_balance < Number(general_physician_chat_amount)){
+                    return {statusCode: 401, message: 'Available balace is low, please top up your balance' }
+                }
+                const update_account = await prisma.account.update({
+                    where: {account_id: patient.account_id},
+                    data: {available_balance: patient.available_balance - Number(general_physician_chat_amount)}
                 })
                 
                 return {statusCode: 200, message: 'Account updated successfully'}
             }
-            return {statusCode: 200, message: 'Account remained as it were'}
-
+            // when the doctor is not registered as a specialist or a general doctor
+            else if (physician?.speciality === ''){   
+                return {statusCode: 401, message: `Only doctors who are sepecialist or general doctors can attend to patients speciality ${physician.speciality} `}
+            }
             
         } catch (err:any) {
             return {statusCode: 500, message: `Error during patient account deduction error : ${err}`}
@@ -167,34 +197,34 @@ class Chat {
 
     accountAddition = async (userAuth:any, data:any,)=>{
         try {
-            if (userAuth.patient_id){
-                const physician:any = await prisma.physician.findFirst({
-                        where: {physician_id: data.physician_id}
-                })
-                let earned_amount: number = 0;
-                
-                if (physician.registered_as === 'specialist'){
-                    earned_amount = chat_amount * (specialist_percentage / 100);
-                } else if (physician.registered_as === 'general_doctor'){
-                    earned_amount = chat_amount * (general_physician_percentage / 100);
-                }
-
-                const account = await prisma.account.findFirst({
-                    where: {physician_id: data.physician_id}
-                })
-                
-                const physician_account = await prisma.account.update({
-                    where: { account_id: account?.account_id }, 
-                    data: {
-                        available_balance: {
-                            increment: earned_amount
-                        }
-                    }
-                });
-
-                return {statusCode: 200, message: 'Account updated successfully'}
+            if (userAuth.physician_id){
+                return {statusCode: 200, message: 'Account remainded as it were'}
             }
-            return {statusCode: 200, message: 'Account remainded as it were'}
+
+            const [physician, account] = await Promise.all([ prisma.physician.findFirst({ where: {physician_id: data.physician_id} }),
+                                                                prisma.account.findFirst({ where: {physician_id: data.physician_id} }) ])
+
+            if (!account) { return {statusCode: 404, message: 'Physician account not found.'} }
+                                                                
+            let earned_amount: number = 0;
+            
+            if (physician?.speciality !== 'general_doctor'){
+                earned_amount = specialist_physician_chat_amount * (specialist_physician_chat_percentage / 100);   // earned_amount = 90
+            } else if (physician?.speciality == 'general_doctor'){
+                earned_amount = general_physician_chat_amount * (general_physician_chat_percentage / 100);   // earned_amount = 60
+            }
+
+            
+            const physician_account = await prisma.account.update({
+                where: { account_id: account?.account_id }, 
+                data: {
+                    available_balance: {
+                        increment: earned_amount
+                    }
+                }
+            });
+
+            return {statusCode: 200, message: 'Account updated successfully'}
 
         } catch (err: any) {
             console.error("Error updating physician's account balance:", err);
@@ -231,11 +261,13 @@ class Chat {
 
     clearChat = async(req: Request, res: Response, next: NextFunction)=>{
         try {
-            const chats = await ChatModel.deleteMany({appointment_id: '72d02e62-7f0e-4316-97f2-d7ec8aa62d92'})
-            return res.status(200).json({chats})
-        } catch (err:any) {
-            console.log('Error clearing chat')
-            return res.status(500).json({err: 'Error clearing chat'})
+            const {appointment_id} = req.params
+
+            const chats:any = await ChatModel.deleteMany({appointment_id})
+            
+            return res.status(200).json({msg: 'Appointment deleted successfully.', chats})
+        } catch (err) {
+            console.log('err')
         }
     }
 

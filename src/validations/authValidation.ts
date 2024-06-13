@@ -58,7 +58,6 @@ class HelperValidation {
             return res.status(422).json({ err: 'Error during password update validation' })
         }
     }
-   
     
 }
 
@@ -76,6 +75,36 @@ export const chatValidation = async ( data:any) => {
             text: Joi.string().allow('').optional(),
             token: Joi.string().required(),
             media: Joi.array()
+        })
+        
+        
+        const value = await schema.validateAsync({...data});
+
+        return ({
+            status: true,
+            data: value,
+            message: 'validated succesfully',
+            statusCode: 401,
+        });
+        } catch (error:any) {
+            console.log(error)
+            return ({
+            status: false,
+            statusCode: 422,
+            message: error.details[0].message,
+            error: error.details[0].message,
+        });
+    }
+}
+
+export const videoChatValidation = async ( data:any) => {
+    try {
+        const schema = Joi.object({
+            meetingId: Joi.string().trim().required(),
+            physician_id: Joi.string().trim().required(),
+            patient_id: Joi.string().trim().required(),
+            is_physician: Joi.boolean().required(),
+            is_patient: Joi.boolean().required(),
         })
         
         

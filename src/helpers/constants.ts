@@ -14,12 +14,17 @@ export const paystack_public_key = process.env.PAYSTACK_PUBLIC_KEY
 export const msg_amount = process.env.AMOUNT
 export const passPhrase = process.env.PASSPHRASE
 export const chat_amount = Number(process.env.CHAT_AMOUNT)
-export const specialist_percentage  = Number(process.env.SPECIALIST_PHYSCIAN_CHAT_PERCENTAGE)
-export const general_physician_percentage  = Number(process.env.GENERAL_PHYSYCIAN_CHAT_PERCENTAGE)
-export const videsdk_api_key = process.env.VIDEO_SDK_API_KEY
-export const videsdk_secret_key = process.env.VIDEO_SDK_API_SECRET
-export const public_vipid_key = process.env.VAVID_PUBLIC_KEY
-export const private_vipid_key = process.env.VAVID_PRIVATE_KEY
+export const general_physician_chat_amount = Number(process.env.GENERAL_PHYSYCIAN_CHAT_AMOUNT)
+export const specialist_physician_chat_amount = Number(process.env.SPECIALIST_PHYSCIAN_CHAT_AMOUNT)
+
+export const specialist_physician_chat_percentage  = Number(process.env.SPECIALIST_PHYSCIAN_CHAT_PERCENTAGE)
+export const general_physician_chat_percentage  = Number(process.env.GENERAL_PHYSYCIAN_CHAT_PERCENTAGE)
+export const videosdk_api_key = process.env.VIDEO_SDK_API_KEY
+export const videosdk_secret_key = process.env.VIDEO_SDK_API_SECRET
+export const videosdk_endpoint = process.env.VIDEOSDK_API_ENDPOINT
+export const vapid_public_key = process.env.VAPID_PUBLIC_KEY
+export const vapid_private_key = process.env.VAPID_PRIVATE_KEY
+
 
 
 export const CORS_OPTION ={

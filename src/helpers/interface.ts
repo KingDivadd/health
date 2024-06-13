@@ -1,7 +1,8 @@
 import { Document, PopulatedDoc } from "mongoose";
 
 export interface CustomRequest {
-    params: { page_number?: number | undefined; patient_id?: string | undefined; physician_id?: string | undefined };
+    params: { page_number?: number | undefined; patient_id?: string | undefined; physician_id?: string | undefined; caseNote_id?: string | undefined; appointment_id?: string | undefined; status?: string | undefined; meetingId?: string | undefined; roomId?: string | undefined; page?:number | undefined; perPage?:number | undefined; sessionId?: string | undefined; notificationId?: string | undefined };
+
     query: { page?: number | undefined; perPage?: number | undefined; };
     decodedToken?: any;
     body: any;

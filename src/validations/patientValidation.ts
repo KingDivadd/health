@@ -145,7 +145,7 @@ class PatientValidation {
         try {
             const mode_of_consult_enum = ['physical', 'virtual']
             const appointment_type_enum = ['chat', 'video_call']
-            const validate_create_appointment = Joi.object({                
+            const schema = Joi.object({                
                 physician_id: Joi.string().trim().required(), 
                 mode_of_consult: Joi.string().valid('virtual', 'physical').required(),
                 appointment_type: Joi.when('mode_of_consult', {
@@ -156,7 +156,7 @@ class PatientValidation {
                 complain: Joi.string().trim().required(),
                 time: Joi.number().required()
             });
-            const { error: validation_error } = validate_create_appointment.validate(req.body)
+            const { error: validation_error } = schema.validate(req.body)
 
             if (validation_error) {
                 const error_message = validation_error.message.replace(/"/g, '');
@@ -166,6 +166,25 @@ class PatientValidation {
         } catch (err) {
             console.log(err)
             return res.status(422).json({ err: 'Error during book appoitment validation.' })
+        }
+    }
+
+    filterNotificationValidation = (req: Request, res: Response, next: NextFunction) => {
+        try {
+            const schema = Joi.object({                
+                status: Joi.string().trim().valid('pending', 'completed').required(), 
+                
+            });
+            const { error: validation_error } = schema.validate(req.body)
+
+            if (validation_error) {
+                const error_message = validation_error.message.replace(/"/g, '');
+                return res.status(400).json({ err: error_message });
+            }
+            next()
+        } catch (err) {
+            console.log(err)
+            return res.status(422).json({ err: 'Error during filtering notification validation.' })
         }
     }
 

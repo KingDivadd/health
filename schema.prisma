@@ -38,7 +38,9 @@ model Patient {
 
   referral_code               String?          @default(value: "")
 
-  appointment_id              Appointment[]
+  appointment                 Appointment[]
+  caseNote                    CaseNote[]
+  notification                Notification[]    
 
   created_at                  Decimal
   updated_at                  Decimal
@@ -72,7 +74,9 @@ model Physician {
   bio                         String?          @default(value: "")
   date_of_establishment       String?          @default(value: "")
 
-  appointment_id              Appointment[]
+  appointment                 Appointment[]
+  caseNote                    CaseNote[]
+  notification                Notification[]    
 
 
   created_at                  Decimal
@@ -85,8 +89,16 @@ model Transaction {
 
   amount                      Int             @default(value: 0)
   
-  Account                     Account?    @relation(fields: [account_id], references: [account_id])
+  Account                     Account?        @relation(fields: [account_id], references: [account_id])
   account_id                  String?
+
+  patient_id                  String?         @default(value: "")
+
+  physician_id                String?         @default(value: "")
+
+  transaction_type            String          @default(value: "")
+
+  notification                Notification[] 
 
   created_at                  Decimal
   updated_at                  Decimal
@@ -121,6 +133,64 @@ model Appointment {
   complain                    String
   status                      String          @default(value: "pending")
 
+  notification                Notification[]
+
   created_at                  Decimal
   updated_at                  Decimal
+}
+
+model CaseNote {
+  caseNote_id                     String          @id @default(uuid())
+  appointment_id                  String
+
+  presenting_complaint            String?         @default(value: "")
+  history_of_presenting_complains String?         @default(value: "")
+  past_medical_history            String?         @default(value: "")
+  past_medication                 String?         @default(value: "")
+  current_medication              String?         @default(value: "")
+  family_history                  String?         @default(value: "")
+  social_history                  String?         @default(value: "")
+  review_of_system                String?         @default(value: "")
+  examination_findings            String?         @default(value: "")
+  assessment_or_diagnosis         String?         @default(value: "")
+  plan                            String?         @default(value: "")
+  prescription                    String?         @default(value: "")
+  test                            String?         @default(value: "")
+
+  patient                         Patient         @relation(fields: [patient_id], references: [patient_id])
+  patient_id                      String               
+
+  physician                       Physician       @relation(fields: [physician_id], references: [physician_id])
+  physician_id                    String         
+
+  notification                    Notification[]    
+  
+  created_at                      Decimal
+  updated_at                      Decimal
+}
+
+model Notification {
+  notification_id                 String          @id @default(uuid())
+  status                          String          @default(value: "pending")
+  title                           String?         @default(value: "")
+  details                         String?         @default(value: "")
+
+  patient                         Patient?        @relation(fields: [patient_id], references: [patient_id])
+  patient_id                      String?               
+
+  physician                       Physician?      @relation(fields: [physician_id], references: [physician_id])
+  physician_id                    String?         
+
+  appointment                     Appointment?    @relation(fields: [appointment_id], references: [appointment_id])
+  appointment_id                  String?
+
+  transaction                     Transaction?    @relation(fields: [transaction_id], references: [transaction_id])
+  transaction_id                  String?
+
+  caseNote                        CaseNote?       @relation(fields: [caseNote_id], references: [caseNote_id])
+  caseNote_id                     String?
+
+
+  created_at                      Decimal
+  updated_at                      Decimal
 }

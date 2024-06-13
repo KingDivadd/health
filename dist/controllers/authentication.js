@@ -76,6 +76,7 @@ class Authentication {
                 }
                 const x_id_key = yield redisAuthStore(user, 60 * 60 * 23);
                 res.setHeader('x-id-key', x_id_key);
+                console.log('user ', user);
                 return res.status(201).json({ msg: 'User created successfully, proceed to continuing setting up your profile' });
             }
             catch (err) {

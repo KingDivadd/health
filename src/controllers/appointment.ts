@@ -1,15 +1,8 @@
 import { Request, Response, NextFunction } from 'express'
 import { PrismaClient } from '@prisma/client'
-import generateOTP, { generateReferralCode } from '../helpers/generateOTP';
-import { salt_round } from '../helpers/constants';
-import redisFunc from '../helpers/redisFunc';
 import { CustomRequest } from '../helpers/interface';
-import { sendMailOtp } from '../helpers/email';
-import { sendSMSOtp } from '../helpers/sms';
-import convertedDatetime from '../helpers/currrentDateTime';
-import auth from '../helpers/auth';
-const { Decimal } = require('decimal.js')
-const bcrypt = require('bcrypt')
+import { sendMailAcceptedAppointment, sendMailAppointmentCancelled, sendMailAppointmentCancelledByPatient, sendMailAppointmentDenied, sendMailBookingAppointment } from '../helpers/email';
+import convertedDatetime, {readableDate} from '../helpers/currrentDateTime';
 const prisma = new PrismaClient()
 
 class Appointment {
@@ -27,10 +20,11 @@ class Appointment {
                     patient_id: patient_id,
                 },
                 orderBy: {
-                    time: 'desc'
+                    created_at: 'desc'
                 },
                 take: 1
             });
+
             if (existingAppointment !== null) {
                 const differenceInMilliseconds = Math.abs(req.body.time - Number(existingAppointment.time));
     
@@ -43,25 +37,58 @@ class Appointment {
             // Create the appointment
             const new_appointment_data = {
                 ...req.body,
-                time: req.body.time // Convert BigInt to string
+                time: req.body.time
             };
     
             const new_appointment = await prisma.appointment.create({
-                data: new_appointment_data,
+                data: req.body,
                 include: {
                     patient: {
                         select: {last_name: true, first_name: true, other_names: true, avatar: true}
                     },
                     physician: {
-                        select: {last_name:true, first_name: true, other_names: true, avatar: true, bio: true, speciality: true, registered_as: true, languages_spoken: true, medical_license: true, gender: true, }
+                        select: {last_name:true, first_name: true, other_names: true, avatar: true, bio: true, speciality: true, registered_as: true, languages_spoken: true, medical_license: true, gender: true, email: true }
                     }
                 }
             });
+
+            if (new_appointment && new_appointment.physician){
+                sendMailBookingAppointment(new_appointment.physician, new_appointment.patient, new_appointment)
+                // create notificaton
+                req.body.created_at= convertedDatetime()
+                req.body.updated_at= convertedDatetime()
+                
+                const [] = await Promise.all([prisma.notification.create({
+                    data: {
+                        appointment_id: new_appointment.appointment_id,
+                        patient_id: new_appointment.patient_id,
+                        physician_id: null, 
+                        title: "Appointment",
+                        caseNote_id: null,
+                        details: `You've created an appointment with Dr ${new_appointment.physician?.last_name} ${new_appointment.physician?.first_name} for ${readableDate(Number(new_appointment.time))}`,
+                        created_at: convertedDatetime(),
+                        updated_at: convertedDatetime(),
+                    }
+                }),prisma.notification.create({
+                    data: {
+                        appointment_id: new_appointment.appointment_id,
+                        patient_id: null,
+                        physician_id: new_appointment.physician_id, 
+                        title: "Appointment",
+                        caseNote_id: null,
+                        details: `A new appointment has been created with you by ${new_appointment.patient?.last_name} ${new_appointment.patient?.first_name} for ${readableDate(Number(new_appointment.time))}.`,
+                        created_at: convertedDatetime(),
+                        updated_at: convertedDatetime(),
+                    }
+                }) ])
+
+            }
     
     
+            console.log(new_appointment.time, readableDate(Number(new_appointment.time)))
             return res.status(200).json({msg: 'Appointment created successful', new_appointment });
         } catch (err: any) {
-            console.log('Error occurred during appointment creation:', err);
+            console.log('Error occurred during appointment creation error:', err);
             return res.status(500).json({ error: `Error occurred during appointment creation: ${err.message}` });
         }
     }
@@ -80,15 +107,54 @@ class Appointment {
                 return res.status(401).json({err: 'Only doctors booked for an appointment can accept or reject an appointment!'})
             }
 
+            if (appointment.status === 'cancelled'){
+                return res.status(409).json({err: 'Appointment already cancelled.'})
+            }
+
             const updateAppointment = await prisma.appointment.update({
                 where: {appointment_id},
-                data: {status}
+                data: {status},
+                include: {patient: {
+                    select: {last_name: true, email: true, first_name: true}
+                }, physician: {
+                    select: {last_name: true, first_name: true, email: true }
+                }}
             })
 
-            if (updateAppointment && status === 'accepted'){
+            if (updateAppointment && updateAppointment.patient && status === 'accepted'){
+                // send mail to the patient
+                const [] = await Promise.all([prisma.notification.create({
+                    data: {
+                        appointment_id: updateAppointment.appointment_id,
+                        patient_id: updateAppointment.patient_id,
+                        physician_id: null, 
+                        title: "Appointment",
+                        caseNote_id: null,
+                        details: `Your appointment with Dr ${updateAppointment.physician?.last_name} ${updateAppointment.physician?.first_name} scheduled for ${readableDate(Number(updateAppointment.time))} has been accepted`,
+                        created_at: convertedDatetime(),
+                        updated_at: convertedDatetime(),
+                    }
+                    }),prisma.notification.create({
+                    data: {
+                        appointment_id: updateAppointment.appointment_id,
+                        patient_id: null,
+                        physician_id: updateAppointment.physician_id, 
+                        title: "Appointment",
+                        caseNote_id: null,
+                        details: `You've accepted the appointment created by ${updateAppointment.patient?.last_name} ${updateAppointment.patient?.first_name} scheduled for ${readableDate(Number(updateAppointment.time))}.`,
+                        created_at: convertedDatetime(),
+                        updated_at: convertedDatetime(),
+                    }
+                }) ])
+                sendMailAcceptedAppointment( updateAppointment.patient, updateAppointment.physician, updateAppointment)
+
                 return res.status(200).json({msg: 'Appointment accepted', appointment: updateAppointment})
+            }else if (updateAppointment && updateAppointment.patient && status === 'denied'){
+
+                sendMailAppointmentDenied(updateAppointment.physician, updateAppointment.patient, appointment)
+
+                return res.status(200).json({msg: 'Appointment denied', appointment: updateAppointment})
             }
-            return res.status(200).json({msg: 'Appointment denied', appointment: updateAppointment})
 
         } catch (err: any) {
             console.log('Error while appointment is to be accepted:', err);
@@ -96,22 +162,102 @@ class Appointment {
         }
     }
     
+    cancelAppointment = async(req: CustomRequest, res: Response, next: NextFunction)=>{
+        const {appointment_id, status} = req.body
+        try {
+            const user = req.account_holder.user
+            const appointment = await prisma.appointment.findUnique({ where: {appointment_id} })
+            
+            if (appointment == null || !appointment) {
+                return res.status(404).json({err: 'Appointment not found'})
+            }
+            
+            if ((user.patient_id && user.patient_id !== appointment.patient_id) || (user.physician_id && user.physician_id !== appointment.physician_id)){
+                return res.status(401).json({err: 'Appointment can only be cancelled by patient or physician for which the appointment is for'})
+            }
+
+            if (appointment.status === 'cancelled'){
+                return res.status(409).json({err: 'Appointment already cancelled.'})
+            }
+
+            const cancelAppointment = await prisma.appointment.update({
+                where: {appointment_id},
+                data: {status},
+                include: {patient: {
+                    select: {last_name: true, email: true, first_name: true}
+                }, physician: {
+                    select: {last_name: true, first_name: true, email: true }
+                }}
+            })
+
+            const [] = await Promise.all([prisma.notification.create({
+                data: {
+                    appointment_id: cancelAppointment.appointment_id,
+                    patient_id: cancelAppointment.patient_id,
+                    physician_id: null, 
+                    title: "Appointment",
+                    status: "completed",
+                    caseNote_id: null,
+                    details: `Your appointment with Dr ${cancelAppointment.physician?.last_name} ${cancelAppointment.physician?.first_name} scheduled for ${readableDate(Number(cancelAppointment.time))} has been cancelled`,
+                    created_at: convertedDatetime(),
+                    updated_at: convertedDatetime(),
+                }
+                }),prisma.notification.create({
+                data: {
+                    appointment_id: cancelAppointment.appointment_id,
+                    patient_id: null,
+                    physician_id: cancelAppointment.physician_id, 
+                    title: "Appointment",
+                    status: "completed",
+                    caseNote_id: null,
+                    details: `You've cancelld your appointment with ${cancelAppointment.patient?.last_name} ${cancelAppointment.patient?.first_name} scheduled for ${readableDate(Number(cancelAppointment.time))}.`,
+                    created_at: convertedDatetime(),
+                    updated_at: convertedDatetime(),
+                }
+            }) ])
+            
+            if (cancelAppointment && user.patient_id){
+                // send mail to the doctor and trigger notification
+                sendMailAppointmentCancelledByPatient(cancelAppointment.physician, cancelAppointment.patient, appointment)
+
+                return res.status(200).json({msg: 'Appointment cancelled', appointment: cancelAppointment})
+
+            }else if (cancelAppointment && user.physician_id){
+                // send mail to the patient and trigger notification for the patient
+                sendMailAppointmentCancelled(cancelAppointment.physician, cancelAppointment.patient, appointment)
     
+                return res.status(200).json({msg: 'Appointment cancelled', appointment: cancelAppointment})
+
+            }
+
+
+        } catch (err: any) {
+            console.log('Error while appointment is to be accepted:', err);
+            return res.status(500).json({ error: `Error occurred while appointment is accepted: ${err.message}` });
+        }
+    }
     
     filterAppointments = async (req: CustomRequest, res: Response, next: NextFunction) => {
-        const {status} = req.body
         try {
             const user = req.account_holder.user;
             const user_id = user.physician_id ? user.physician_id : (user.patient_id ? user.patient_id : null);
     
-            const { page_number } = req.params;
+            const {status, page_number } = req.params;
+            if (!status || status.trim() === ''){
+                return res.status(400).json({err: 'Please provide appointment status'})
+            }
+
+            if ( !['pending', 'accepted', 'completed', 'denied'].includes(status)){
+                return res.status(400).json({err: 'Invalid field for status'})
+            }
+
             const [number_of_appointments, appointments] = await Promise.all([
 
                 prisma.appointment.count({
                     where: {
                         patient_id: user.patient_id,
                         physician_id: user.physician_id,
-                        status: { contains: req.body.status, mode: "insensitive" }
+                        status: { contains: status, mode: "insensitive" }
                     }
                 }),
                 
@@ -124,7 +270,7 @@ class Appointment {
                     where: {
                         patient_id: user.patient_id,
                         physician_id: user.physician_id,
-                        status: { contains: req.body.status, mode: "insensitive" }
+                        status: { contains: status, mode: "insensitive" }
                     },
                     include: {
                         patient: {
@@ -214,6 +360,35 @@ class Appointment {
         }
     }
 
+    deleteAppointment = async (req: CustomRequest, res: Response, next: NextFunction) =>{
+        try {
+            const {appointment_id} = req.params
+
+            const user = req.account_holder.user
+
+            const appointment = await prisma.appointment.findUnique({
+                where: {appointment_id}
+            })
+
+            if (!appointment) {
+                return res.status(404).json({err: 'Appointment not found'})
+            }
+
+            if (appointment.patient_id !== user.patient_id){
+                return res.status(401).json({err: 'You are not authorized to delete selected appointment.'})
+            }
+
+            const delete_appointment = await prisma.appointment.delete({
+                where: {appointment_id}
+            })
+            // now we will delete all the chats linked to the appointment
+
+            next()
+        } catch (error: any) {
+            console.log('Error occured while deleting appointment ', error)
+            return res.status(500).json({err: 'Error occured while deleting appointment ', error})
+        }
+    }
 }
 
 export default new Appointment

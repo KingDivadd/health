@@ -22,34 +22,52 @@ class Account {
             }
         }
 
-        decryptData = async(req: CustomRequest, res: Response, next: NextFunction) => {
+        decryptDepositData = async(req: CustomRequest, res: Response, next: NextFunction) => {
             const { encrypted_data } = req.body;
             try {   
+                console.log('transaction ecrypted data :: ',encrypted_data)
                 const decrypted_data:any = await handleDecrypt(encrypted_data);
                 const parsed_decrypted_data:any = JSON.parse(decrypted_data)
 
+                console.log('transction data :: ', parsed_decrypted_data)
+
                 // first get user
-                const patient = await prisma.account.findFirst({
+                let patient_id = '';
+                let physician_id = '';
+
+                if (parsed_decrypted_data?.patient_id){
+                    patient_id = parsed_decrypted_data?.patient_id
+                }else if (parsed_decrypted_data?.physician_id){
+                    physician_id = parsed_decrypted_data?.physician_id
+                }
+
+                const user_account = await prisma.account.findFirst({
                     where: {
-                        patient_id: parsed_decrypted_data?.patient_id 
+                        patient_id: patient_id,
+                        physician_id: physician_id,
                     }
                 })
                 
-                if (patient == null) {
-                    return res.status(404).json({err: 'Patient not found'})
+                if (user_account == null) {
+                    return res.status(404).json({err: 'User not found'})
                 }
                 
-                if (patient) {
-                    const update_account = await prisma.account.update({
-                        where: {
-                            account_id: patient.account_id // Assuming account_id is unique
-                        },
-                        data: {
-                            available_balance: {
-                                increment: parsed_decrypted_data.amount/100,
+                if (user_account) {
+                    if (parsed_decrypted_data.transaction_type.toLowerCase() === 'credit'){
+                        const update_account = await prisma.account.update({
+                            where: {
+                                account_id: user_account.account_id
+                            },
+                            data: {
+                                available_balance: {
+                                    increment: parsed_decrypted_data.amount/100,
+                                }
                             }
-                        }
-                    });
+                        });
+                        
+                    }else{
+                        return res.status(400).json({err: 'Invalid deposit trnsaction type.'})
+                    }
                     
                 }
                 
@@ -58,7 +76,114 @@ class Account {
                 const new_transaction = await prisma.transaction.create({
                     data: {
                         amount: parsed_decrypted_data.amount/100,
-                        account_id: patient.account_id,
+                        transaction_type: parsed_decrypted_data.transaction_type,
+                        patient_id: patient_id || "",
+                        physician_id: physician_id || "",
+                        account_id: user_account.account_id,
+                        created_at: convertedDatetime(),
+                        updated_at: convertedDatetime(),
+                    }
+                })
+
+                // the notification sent to the patient
+                const notification = await prisma.notification.create({
+                    data: {
+                        appointment_id: null,
+                        patient_id: new_transaction?.patient_id || null,
+                        physician_id: new_transaction?.physician_id || null, 
+                        title: "Earnings",
+                        status: "completed",
+                        caseNote_id: null,
+                        details: `You have successfully deposited ${new_transaction?.amount} }.`,
+                        created_at: convertedDatetime(),
+                        updated_at: convertedDatetime(),
+                    }
+                })
+
+
+                return res.status(200).json({ msg: 'Account updated successfully',  });
+            } catch (error: any) {
+                console.log("error during transaction initialization", error);
+                return res.status(500).json({ err: 'Error during transaction initialization ', error: error });
+            }
+        }
+        
+        decryptWithdrawalData = async(req: CustomRequest, res: Response, next: NextFunction) => {
+            const { encrypted_data } = req.body;
+            try {   
+                console.log('transaction ecrypted data :: ',encrypted_data)
+                const decrypted_data:any = await handleDecrypt(encrypted_data);
+                const parsed_decrypted_data:any = JSON.parse(decrypted_data)
+
+                console.log('transction data :: ', parsed_decrypted_data)
+
+                // first get user
+                let patient_id = '';
+                let physician_id = '';
+
+                if (parsed_decrypted_data?.patient_id){
+                    patient_id = parsed_decrypted_data?.patient_id
+                }else if (parsed_decrypted_data?.physician_id){
+                    physician_id = parsed_decrypted_data?.physician_id
+                }
+
+                const user_account = await prisma.account.findFirst({
+                    where: {
+                        patient_id: patient_id,
+                        physician_id: physician_id,
+                    }
+                })
+                
+                if (user_account == null) {
+                    return res.status(404).json({err: 'User not found'})
+                }
+                
+                if (user_account) {
+                    if ( parsed_decrypted_data.transaction_type.toLowerCase() === 'debit' ){
+                        if ( (user_account.available_balance -  ( parsed_decrypted_data.amount / 100 )) < 0 ){
+                            return res.status(400).json({err: 'You cannot withdraw an amount greater than you available balance'})
+                        }
+
+                        const update_account = await prisma.account.update({
+                            where: {
+                                account_id: user_account.account_id
+                            },
+                            data: {
+                                available_balance: {
+                                    decrement: parsed_decrypted_data.amount/100,
+                                }
+                            }
+                        });
+                    }else{
+                        return res.status(400).json({err: 'Invalid withdrawal transaction type. should be debit.'})
+                    }
+                    
+                }
+                
+
+                // adding the transaction data
+                const new_transaction = await prisma.transaction.create({
+                    data: {
+                        amount: parsed_decrypted_data.amount/100,
+                        transaction_type: parsed_decrypted_data.transaction_type,
+                        patient_id: patient_id || "",
+                        physician_id: physician_id || "",
+                        account_id: user_account.account_id,
+                        created_at: convertedDatetime(),
+                        updated_at: convertedDatetime(),
+                    }
+                })
+
+                // notification sent to the patient or physician
+                const notification = await prisma.notification.create({
+                    data: {
+                        appointment_id: null,
+                        patient_id: new_transaction?.patient_id || null,
+                        physician_id: new_transaction?.physician_id || null, 
+                        title: "Earnings",
+                        status: "completed",
+                        caseNote_id: null,
+                        details: `You have successfully withdrawn ${new_transaction?.amount} }.`,
                         created_at: convertedDatetime(),
                         updated_at: convertedDatetime(),
                     }
@@ -125,6 +250,9 @@ class Account {
                     const patient_transaction:any =  await prisma.transaction.findMany({
                         where: {
                             account_id: patient_account.account_id
+                        },
+                        orderBy: {
+                            created_at: 'desc'
                         }
                     })
     

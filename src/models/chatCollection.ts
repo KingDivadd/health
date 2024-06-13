@@ -15,6 +15,7 @@ const chatCollectionSchema = new Schema<ChatInterface>({
     is_patient: { type: Boolean, default: false },
     is_physician: { type: Boolean, default: false },
     date: { type: Number, default: Date.now() },
+    
 }, { timestamps: true });
 
 const ChatModel = model<ChatInterface>("Chat", chatCollectionSchema);

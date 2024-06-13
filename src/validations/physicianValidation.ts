@@ -120,14 +120,8 @@ class PhysicianValidation {
 
     filterPhysicianValidation = (req: Request, res: Response, next: NextFunction) => {
         try {
-            const gender_enum = ['male', 'female']
-            const registered_as = ['specialist', 'hospital', 'laboratory', 'pharmacy']
-            const speciality = ['dentist', 'general_doctor', 'nutritionist', 'oncologist', 'surgeon']
 
             const validate_physician_data = Joi.object({
-                name: Joi.string().allow('').optional(),
-                gender_enum: Joi.string().allow('').valid(...gender_enum).optional(),
-                registered_as: Joi.string().allow('').optional(),
                 speciality: Joi.string().allow('').optional(),
             });
             const { error: validation_error } = validate_physician_data.validate(req.body)
@@ -146,7 +140,7 @@ class PhysicianValidation {
     filterAppointmentValidation = (req: Request, res: Response, next: NextFunction)=> {
         try {
             const schema = Joi.object({
-                status: Joi.string().trim().allow('').valid('accepted', 'denieds').optional(),
+                status: Joi.string().trim().allow('').valid('pending','accepted', 'denied', 'cancelled').optional(),
             });
             const { error: validation_error } = schema.validate(req.body)
 
@@ -162,7 +156,7 @@ class PhysicianValidation {
     }
 
 
-    acceptAppointmentValidation = (req: Request, res: Response, next: NextFunction)=>{
+    updateAppointmentValidation = (req: Request, res: Response, next: NextFunction)=>{
         try {
             const validate_appointment = Joi.object({
                 appointment_id: Joi.string().trim().required(),
@@ -180,6 +174,91 @@ class PhysicianValidation {
             return res.status(422).json({ err: 'Error during accepting appoitment validation.' })
         }
     }
+
+    cancelAppointmentValidation = (req: Request, res: Response, next: NextFunction)=>{
+        try {
+            const validate_appointment = Joi.object({
+                appointment_id: Joi.string().trim().required(),
+                status: Joi.string().trim().valid('cancelled').required()
+            })
+            const { error: validation_error } = validate_appointment.validate(req.body)
+
+            if (validation_error) {
+                const error_message = validation_error.message.replace(/"/g, '');
+                return res.status(400).json({ err: error_message });
+            }
+            next()
+        } catch (err:any) {
+            console.log(err)
+            return res.status(422).json({ err: 'Error during accepting appoitment validation.' })
+        }
+    }
+
+    createCaseNoteValid = (req: Request, res: Response, next: NextFunction)=>{
+        try {
+            const schema = Joi.object({
+                appointment_id: Joi.string().trim().required(),
+                patient_id: Joi.string().trim().required(),
+
+                assessment_or_diagnosis: Joi.string().trim().allow(''), 
+                current_medication: Joi.string().trim().allow(''), 
+                examination_findings: Joi.string().trim().allow(''), 
+                family_history: Joi.string().trim().allow(''), 
+                history_of_presenting_complains: Joi.string().trim().allow(''),
+                past_medical_history: Joi.string().trim().allow(''), 
+                past_medication: Joi.string().trim().allow(''), 
+                plan: Joi.string().trim().allow(''), 
+                presenting_complaint: Joi.string().trim().allow(''), 
+                review_of_system: Joi.string().trim().allow(''), 
+                social_history: Joi.string().trim().allow(''),
+                prescription: Joi.string().trim().allow(''),
+                test: Joi.string().trim().allow('')
+
+
+                })
+            const { error: validation_error } = schema.validate(req.body)
+
+            if (validation_error) {
+                const error_message = validation_error.message.replace(/"/g, '');
+                return res.status(400).json({ err: error_message });
+            }
+            next()
+        } catch (err:any) {
+            console.log(err)
+            return res.status(422).json({ err: 'Error during accepting appoitment validation.' })
+        }
+    }
+    
+    updateCaseNoteValid = (req: Request, res: Response, next: NextFunction)=>{
+        try {
+            const schema = Joi.object({
+                assessment_or_diagnosis: Joi.string().trim().allow(''), 
+                current_medication: Joi.string().trim().allow(''), 
+                examination_findings: Joi.string().trim().allow(''), 
+                family_history: Joi.string().trim().allow(''), 
+                history_of_presenting_complains: Joi.string().trim().allow(''),
+                past_medical_history: Joi.string().trim().allow(''), 
+                past_medication: Joi.string().trim().allow(''), 
+                plan: Joi.string().trim().allow(''), 
+                presenting_complaint: Joi.string().trim().allow(''), 
+                review_of_system: Joi.string().trim().allow(''), 
+                social_history: Joi.string().trim().allow('')
+
+
+                })
+            const { error: validation_error } = schema.validate(req.body)
+
+            if (validation_error) {
+                const error_message = validation_error.message.replace(/"/g, '');
+                return res.status(400).json({ err: error_message });
+            }
+            next()
+        } catch (err:any) {
+            console.log(err)
+            return res.status(422).json({ err: 'Error during accepting appoitment validation.' })
+        }
+    }
+
 
 }
 

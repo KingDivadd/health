@@ -1,9 +1,9 @@
 import express from 'express';
 import http from 'http';
-import webpush from 'web-push'
-const FCM = require('fcm-node')
 import { Server } from 'socket.io';
 import bodyParser from 'body-parser';
+import webpush from 'web-push'
+import apn from 'apn'
 import cors from 'cors';
 import Redis from 'ioredis';
 import colors from 'colors';
@@ -13,10 +13,10 @@ import index from './routes/index';
 import notFound from './middlewares/notFound';
 import networkAvailability from './middlewares/networkAvailability';
 import handleDatabaseError from './middlewares/databaseUnavailable';
-import { CORS_OPTION, port, private_vipid_key, public_vipid_key, redis_url } from './helpers/constants';
+import { CORS_OPTION, port, redis_url, vapid_private_key, vapid_public_key } from './helpers/constants';
 import connectToMongoDB from './config/mongodb';
 import chat from './controllers/chat';
-import authValidation, { chatValidation } from './validations/authValidation';
+import authValidation, { chatValidation, videoChatValidation } from './validations/authValidation';
 
 const {validateChat, verifyUserAuth, createChat, accountDeduction, accountAddition} = chat
 
@@ -28,7 +28,7 @@ const server = http.createServer(app);
 
 const io:any = new Server(server, {
     cors: {
-        origin: "*",
+        origin: "http://localhost:3000",
         methods: ["GET", "POST"]
     }
 });
@@ -38,75 +38,22 @@ app.use(cors(CORS_OPTION));
 app.use(bodyParser.urlencoded({ extended: false }));
 app.use(bodyParser.json());
 
-// handling web push
+// config webpush.js
 
-if (!public_vipid_key || !private_vipid_key) {
+if (!vapid_public_key || !vapid_private_key) {
     throw new Error('Private and Public VAPID keys not found');
 }
 
-webpush.setVapidDetails('mailto:ireugbudavid@gmail.com', public_vipid_key, private_vipid_key);
-
-app.post('/subscribe', (req, res) => {
-    const { subscription, url, payLoad } = req.body;
-
-    console.log( 'Testing : ', payLoad, 'Subscription::', subscription, 'payload : ',payLoad);
-
-    const payloadData = {
-        title: payLoad.title|| 'Push Notification Title',
-        body: payLoad.body ||'Notification body entered by David',
-        icon: 'https://images.pexels.com/photos/5083013/pexels-photo-5083013.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=2',
-        url: url
-    };
-
-    console.log('payload data', payloadData)
-
-    const payload = JSON.stringify(payloadData);
-
-    console.log('string payload ', payload)
-
-    webpush.sendNotification(subscription, payload)
-        .then(() => {
-            console.log('Push notification sent successfully');
-            res.status(201).json({ data: payloadData, test: 'teting' });
-        })
-        .catch(err => {
-            console.error('Error sending notification:', err);
-            res.status(500).json({ error: 'Error sending notification' });
-        });
-});
+webpush.setVapidDetails(
+    'mailto:iroegbu.dg@gmail.com', vapid_public_key, vapid_private_key);
 
 
-// const serverKey = 'BAoq8SpI6kX6dxoWvYtLAkrzOirNOK6vaWI93D-4y0A8zbRe6LEWgb208TnmEa-vK1N6gSKpiFP9JODKIY4ueD8';
-// const fcm = new FCM(serverKey);
 
-// app.post('/send-notification', (req, res) => {
-//     const deviceToken = req.body.deviceToken;
-//     const message = {
-//         to: deviceToken,
-//         notification: {
-//         title: 'Notification Test App',
-//         body: 'Message from Node.js app',
-//         },
-//         data: {
-//         title: 'OK',
-//         body: '{"name": "OK Google", "product_id": "123", "final_price": "0.00035"}',
-//         },
-//     };
-
-//     fcm.send(message, (err:any, response:any) => {
-//         if (err) {
-//         console.error('Error sending notification:', err);
-//         res.status(500).send({ message: 'Error sending notification' });
-//         } else {
-//         console.log('Notification sent successfully:', response);
-//         res.send({ message: 'Notification sent successfully' });
-//         }
-//     });
-// });
 
 
 try {
     io.on("connection", (socket:any) => {
+        // for chat
         socket.on('send-chat-text', async (data: any, callback: any) => {         
             try {
                 
@@ -125,7 +72,7 @@ try {
 
                     socket.emit(`${user_id}`, {
                         statusCode: 401,
-                        message: "You are unauthorized to send this message, kindly login.",
+                        message: userAuth.message,
                         idempotency_key: data.idempotency_key,
                     });
                     return;
@@ -150,8 +97,8 @@ try {
                 if (deduction?.statusCode === 404 || deduction?.statusCode === 401 || deduction?.statusCode === 500){
 
                     socket.emit(`${user_id}`, {
-                        statusCode: 500,
-                        message: "Error Deducting your account",
+                        statusCode: deduction.statusCode,
+                        message: deduction.message,
                         idempotency_key: data.idempotency_key
                     });
                     return;
@@ -178,39 +125,100 @@ try {
                     return;
                 }
 
-
-                console.log("saved_chat", saved_chat)
-    
-            
+                // sender receives a callback
                 socket.emit(`${user_id}`, {
                     statusCode: 200,
-                    message: "Message sent succesfully",
+                    message: "Message sent succesfully, ",
                     idempotency_key: data.idempotency_key,
-                    chat: saved_chat
+                    chat: saved_chat,
                 });
     
-                socket.broadcast.emit(`${data.patient_id}-${data.physician_id}`, saved_chat);
-        
-        
+                // Get the receiver ID
+                const receiver_id = data.is_physician ? data.patient_id : (data.is_patient ? data.physician_id : null);
+
+                // Broadcast to the receiver only
+                socket.broadcast.emit(`${receiver_id}`, {
+                    statusCode: 200,
+                    chat: saved_chat,
+                    senderData: userAuth.data,
+                    idempotency_key: data.idempotency_key,
+                    note: 'received'
+                });
+
+                // Broadcast to patient-physician (sender and receinver)
+                socket.broadcast.emit(`${data.patient_id}-${data.physician_id}`, {
+                    statusCode: 200,
+                    chat: saved_chat,
+                    idempotency_key: data.idempotency_key
+                });
+
+                
             } catch (error) {    
                 console.log(error)
             
-
                 const user_id = data.is_physician ? data.physician_id : (data.is_patient ? data.patient_id : null);
 
                 socket.broadcast.emit(`${user_id}`, {
                     statusCode: 500,
-                    message: "Internal Server Error",
+                    message: "Internal Server Error in the catch block",
                     idempotency_key: data.idempotency_key
                 });
+
+
             
             }
         });
+
+        // for video call
+        socket.on(`callAccepted`, async(data:any, callback:any)=>{
+            const {meetingId, patient_id, is_patient, physician_id, is_physician } = data
+            const user_id = data.is_physician ? data.physician_id : (data.is_patient ? data.patient_id : null);
+
+            const validation = await videoChatValidation(data)
+            if(validation?.statusCode == 422){
+                console.log(validation);
+                callback({status: false,statusCode: 422,message: validation.message,error: validation.message});
+                return;
+            }
+
+            const userAuth = await verifyUserAuth(data.auth_token);
+            if (userAuth.statusCode === 401) {
+
+                socket.emit(`${user_id}`, {
+                    statusCode: 401,
+                    message: userAuth.message,
+                });
+                return;
+            }
+
+
+            const caller = data.is_physician ? data.patient_id : (data.is_patient ? data.physician_id : null);
+
+            // to the receiver olone
+            socket.broadcast.emit(`accepted-call-${caller}`, {
+                statusCode: 200,
+                message: "your call has been accepted accepted your call"
+            })
+
+            // when a user leaves or cancels the call
+            socket.on(`leftCall`, (data: any,callback:any)=>{
+
+                // emit the response to the second user
+                const receiver = data.is_physician ? data.patient_id : (data.is_patient ? data.physician_id : null);
+                const user = data.is_physician ? "Doctor" : (data.is_patient ? "Patient" : "User")
+                socket.emit(`leftCall-${receiver}`, {
+                    statusCode: 200,
+                    message: `${user} left the call`
+                })
+            })
+        })
         
     });
 } catch (err:any) {
-    console.log('Caught error while trying to yse socket ', err)
+    console.log('Caught error while trying to yse socket. ', err)
 }
+
+export {io}
 
 
 if (!redis_url) {
@@ -240,6 +248,9 @@ app.use('/api/v1/message', index);
 app.use('/api/v1/facility', index);
 app.use('/api/v1/appointment', index);
 app.use('/api/v1/transaction', index);
+app.use('/api/v1/case-note', index);
+app.use('/api/v1/push-notification', index)
+app.use('/api/v1/notification', index)
 
 app.use(notFound);
 
@@ -254,5 +265,3 @@ const start = async () => {
 }
 
 start();
-
-

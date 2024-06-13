@@ -14,17 +14,23 @@ const chat_1 = __importDefault(require("../controllers/chat"));
 const userAccount_1 = __importDefault(require("../controllers/userAccount"));
 const appointment_1 = __importDefault(require("../controllers/appointment"));
 const videoChat_1 = __importDefault(require("../controllers/videoChat"));
+const caseNote_1 = __importDefault(require("../controllers/caseNote"));
+const pushNotification_1 = __importDefault(require("../controllers/pushNotification"));
+const chatValidation_1 = __importDefault(require("../validations/chatValidation"));
 const router = express_1.default.Router();
-const { physicianSetupProfileValidation, physicianDataValidation, physicianLoginValidation, physicianSignupValidation, filterPhysicianValidation, acceptAppointmentValidation, filterAppointmentValidation } = physicianValidation_1.default;
+const { endMeetingSessionValid, removeParticipantValid } = chatValidation_1.default;
+const { webPushNotification } = pushNotification_1.default;
+const { physicianSetupProfileValidation, physicianDataValidation, physicianLoginValidation, physicianSignupValidation, filterPhysicianValidation, updateAppointmentValidation, createCaseNoteValid, updateCaseNoteValid, cancelAppointmentValidation } = physicianValidation_1.default;
 const { isRegisteredPatient, isRegisteredPhysician, emailExist, verifyAuthId, verifyOtpId, isLoggedIn, } = auth_1.default;
 const { patientSignup, physicianSignup, patientLogin, physicianLogin, generateUserOTP, signupGenerateUserOTP, verifyPatientOTP, verifyPhysicianOTP, resetPatientPassword, resetPhysicianPassword, } = authentication_1.default;
 const { patientUpdateCompletionValidation, patientOrgProfileCompletionValidation, patientEditValidation, patientLoginValidation, patientSignupValidation, encryptedDataValidation, bookAppointmentValidation, } = patientValidation_1.default;
 const { loggedInPatient, loggedInPhysician, editPatientData, signupUpdatePatientData, editPhysicianData, singupUpdatePhysicianData, filterPhysicians, allPhysicians } = users_1.default;
 const { genOtpValidation, passwordUpdateValidation, verifyOtpValidation } = authValidation_1.default;
 const { openChat, getChats, clearChat } = chat_1.default;
-const { decryptData, encryptData, account, accountTransaction } = userAccount_1.default;
-const { createAppointment, updateAppointment, allAppointments, filterAppointments } = appointment_1.default;
-const { generateVideoSdkToken, createMeeting, joinMeeting, createRoom } = videoChat_1.default;
+const { decryptDepositData, decryptWithdrawalData, encryptData, account, accountTransaction } = userAccount_1.default;
+const { createAppointment, cancelAppointment, updateAppointment, allAppointments, filterAppointments, deleteAppointment } = appointment_1.default;
+const { generateToken, createMeeting, validateMeeting, listMeeting, listSelectedMeeting, deActivateMeeting, listMeetingSession, getSessionDetails, endMeetingSession, fetchActiveParticipant, removeParticipant, fetchParticipant } = videoChat_1.default;
+const { allCaseNote, createCaseNote, deleteCaseNote, updateCaseNote } = caseNote_1.default;
 // Authentication
 router.route('/patient-signup').post(patientSignupValidation, emailExist, patientSignup);
 router.route('/physician-signup').post(physicianSignupValidation, emailExist, physicianSignup);
@@ -46,27 +52,45 @@ router.route('/edit-patient-data').patch(patientEditValidation, isLoggedIn, edit
 router.route('/signup-update-physician-data').patch(physicianSetupProfileValidation, verifyAuthId, singupUpdatePhysicianData, signupGenerateUserOTP);
 router.route('/edit-physician-data').patch(physicianDataValidation, isLoggedIn, editPhysicianData);
 router.route('/all-physicians/:page_number').get(isLoggedIn, allPhysicians);
-router.route('/filter-physician/:page_number').post(filterPhysicianValidation, filterPhysicians);
+router.route('/filter-physician/:page_number').post(filterPhysicianValidation, isLoggedIn, filterPhysicians);
 // Appointment
 router.route('/create-appointment').post(isLoggedIn, bookAppointmentValidation, createAppointment);
-router.route('/accept-appointment').patch(isLoggedIn, acceptAppointmentValidation, updateAppointment);
-router.route('/reject-appointment').patch(isLoggedIn, acceptAppointmentValidation, updateAppointment);
+router.route('/accept-appointment').patch(isLoggedIn, updateAppointmentValidation, updateAppointment);
+router.route('/reject-appointment').patch(isLoggedIn, updateAppointmentValidation, updateAppointment);
+router.route('/cancel-appointment').patch(isLoggedIn, cancelAppointmentValidation, cancelAppointment);
 router.route('/get-appointment/:page_number').get(isLoggedIn, allAppointments);
-router.route('/filter-appointment/:page_number').post(isLoggedIn, filterAppointments);
+router.route('/filter-appointment/:status/:page_number').get(isLoggedIn, filterAppointments);
+router.route('/delete-appointment/:appointment_id').delete(isLoggedIn, deleteAppointment, clearChat);
 // Chat
 router.route('/get-chats/:patient_id/:physician_id').get(isLoggedIn, getChats);
-router.route('/clear-chat').delete(clearChat);
+router.route('/clear-chat/:appointment_id').delete(clearChat);
 // VideoSDK
-router.route('/generate-token').post(isLoggedIn, generateVideoSdkToken);
-router.route('/create-meeting').post(createMeeting);
-router.route('/join-meeting').post(joinMeeting);
-router.route('/create-room').post(createRoom);
+router.route('/generate-token').post(isLoggedIn, generateToken);
+router.route('/create-meeting').post(isLoggedIn, createMeeting);
+router.route('/validate-meeting/:meetingId').get(isLoggedIn, validateMeeting);
+router.route('/list-meeting/:page_number').get(isLoggedIn, listMeeting);
+router.route('/get-meeting-details/:roomId').get(isLoggedIn, listSelectedMeeting);
+router.route('/deactivate-meeting/:roomId').post(isLoggedIn, deActivateMeeting);
+router.route('/list-meeting-sessions/:roomId/:page_number').get(isLoggedIn, listMeetingSession);
+router.route('/get-session-details/:sessionId').get(isLoggedIn, getSessionDetails);
+router.route('/fetch-participants/:sessionId').get(isLoggedIn, fetchActiveParticipant);
+router.route('/fetch-active-participants/:sessionId').get(isLoggedIn, fetchActiveParticipant);
+router.route('/end-meeting-session').post(isLoggedIn, endMeetingSessionValid, endMeetingSession);
+router.route('/remove-participant').post(isLoggedIn, removeParticipantValid, removeParticipant);
 // User Account
 router.route('/encrypt-data').post(encryptData);
-router.route('/decrypt-transaction-data').post(encryptedDataValidation, decryptData);
+router.route('/decrypt-deposit-transaction-data').post(isLoggedIn, encryptedDataValidation, decryptDepositData);
+router.route('/decrypt-withdrawal-transaction-data').post(isLoggedIn, encryptedDataValidation, decryptWithdrawalData);
 router.route('/patient-account').get(isLoggedIn, account);
 router.route('/physician-account').get(isLoggedIn, account);
 router.route('/patient-transaction').get(isLoggedIn, accountTransaction);
 router.route('/physician-transaction').get(isLoggedIn, accountTransaction);
+// Case Notes
+router.route('/all-case-note/:patient_id').get(isLoggedIn, allCaseNote);
+router.route('/add-case-note').post(isLoggedIn, createCaseNoteValid, createCaseNote);
+router.route('/update-case-note/:caseNote_id').patch(isLoggedIn, updateCaseNoteValid, updateCaseNote);
+router.route('/delete-case-note/:caseNote_id').delete(isLoggedIn, deleteCaseNote);
+// Push Notofication
+router.route('/subscribe').post(webPushNotification);
 exports.default = router;
 //# sourceMappingURL=index.js.map
