@@ -202,23 +202,14 @@ try {
         console.log('a user connected');
         // Listening for the call-not-answered event
         socket.on('call-not-answered', (data, callback) => {
-            console.log('call-not-answered event received:', data);
+            callback({ statusCode: 200, message: 'Call timed out.' });
             // Process the data as needed, then emit a response event
-            const response = {
-                statusCode: 200,
+            const notAnsweredResponse = {
                 title: 'normal response',
-                message: 'Call not answered event processed successfully'
-            };
-            const callbackResponse = {
-                statusCode: 200,
-                title: 'callback response',
-                message: 'Call not answered event processed successfully'
+                message: `User not available now, please try again later`
             };
             // Emit the response back to the client
-            socket.broadcast.emit('call-not-answered-response', response);
-            // Call the callback function with the response if necessary
-            if (callback)
-                callback(callbackResponse);
+            socket.broadcast.emit('call-not-answered-response', notAnsweredResponse);
         });
         socket.on('disconnect', () => {
             console.log('user disconnected');
