@@ -29,6 +29,7 @@ const databaseUnavailable_1 = __importDefault(require("./middlewares/databaseUna
 const constants_1 = require("./helpers/constants");
 const mongodb_1 = __importDefault(require("./config/mongodb"));
 const chat_1 = __importDefault(require("./controllers/chat"));
+const authValidation_1 = require("./validations/authValidation");
 const { validateChat, verifyUserAuth, createChat, accountDeduction, accountAddition } = chat_1.default;
 dotenv_1.default.config();
 const app = (0, express_1.default)();
@@ -50,158 +51,113 @@ if (!constants_1.vapid_public_key || !constants_1.vapid_private_key) {
 }
 web_push_1.default.setVapidDetails('mailto:iroegbu.dg@gmail.com', constants_1.vapid_public_key, constants_1.vapid_private_key);
 try {
-    // io.on("connection", (socket:any) => {
-    //     // for chat
-    //     // socket.on('send-chat-text', async (data: any, callback: any) => {         
-    //     //     try {
-    //     //         const validation = await chatValidation(data)
-    //     //         if(validation?.statusCode == 422){
-    //     //             console.log(validation);
-    //     //             callback({status: false,statusCode: 422,message: validation.message,error: validation.message});
-    //     //             return;
-    //     //         }
-    //     //         const user_id = data.is_physician ? data.physician_id : (data.is_patient ? data.patient_id : null);
-    //     //         const userAuth = await verifyUserAuth(data.token);
-    //     //         if (userAuth.statusCode === 401) {
-    //     //             socket.emit(`${user_id}`, {
-    //     //                 statusCode: 401,
-    //     //                 message: userAuth.message,
-    //     //                 idempotency_key: data.idempotency_key,
-    //     //             });
-    //     //             return;
-    //     //         }
-    //     //         else if (userAuth.statusCode === 404) {
-    //     //             socket.emit(`${user_id}`, {
-    //     //                 statusCode: 401,
-    //     //                 message: "Auth session id expired. Please login and get new x-id-key.",
-    //     //                 idempotency_key: data.idempotency_key
-    //     //             });
-    //     //             return;
-    //     //         }else if (userAuth.statusCode === 500){
-    //     //             socket.emit(`${user_id}`, {
-    //     //                 statusCode: 500,
-    //     //                 message: "Internal Server Error",
-    //     //                 idempotency_key: data.idempotency_key
-    //     //             });
-    //     //             return;
-    //     //         }
-    //     //         const deduction = await accountDeduction(userAuth.data, data)
-    //     //         if (deduction?.statusCode === 404 || deduction?.statusCode === 401 || deduction?.statusCode === 500){
-    //     //             socket.emit(`${user_id}`, {
-    //     //                 statusCode: deduction.statusCode,
-    //     //                 message: deduction.message,
-    //     //                 idempotency_key: data.idempotency_key
-    //     //             });
-    //     //             return;
-    //     //         }
-    //     //         const addition:any = await accountAddition(userAuth.data, data)
-    //     //         if (addition.statusCode === 500){
-    //     //             //callback(addition);
-    //     //             socket.emit(`${user_id}`, {
-    //     //                 statusCode: 500,
-    //     //                 message: "Error with accounting",
-    //     //                 idempotency_key: data.idempotency_key
-    //     //             });
-    //     //             return;
-    //     //         }
-    //     //         const saved_chat:any = await createChat(data, userAuth.data);
-    //     //         if (saved_chat.statusCode === 500 ){
-    //     //             socket.emit(`${user_id}`, {
-    //     //                 statusCode: 500,
-    //     //                 message: "Error sending messages",
-    //     //                 idempotency_key: data.idempotency_key
-    //     //             });
-    //     //             return;
-    //     //         }
-    //     //         // sender receives a callback
-    //     //         socket.emit(`${user_id}`, {
-    //     //             statusCode: 200,
-    //     //             message: "Message sent succesfully, ",
-    //     //             idempotency_key: data.idempotency_key,
-    //     //             chat: saved_chat,
-    //     //         });
-    //     //         // Get the receiver ID
-    //     //         const receiver_id = data.is_physician ? data.patient_id : (data.is_patient ? data.physician_id : null);
-    //     //         // Broadcast to the receiver only
-    //     //         socket.broadcast.emit(`${receiver_id}`, {
-    //     //             statusCode: 200,
-    //     //             chat: saved_chat,
-    //     //             senderData: userAuth.data,
-    //     //             idempotency_key: data.idempotency_key,
-    //     //             note: 'received'
-    //     //         });
-    //     //         // Broadcast to patient-physician (sender and receinver)
-    //     //         socket.broadcast.emit(`${data.patient_id}-${data.physician_id}`, {
-    //     //             statusCode: 200,
-    //     //             chat: saved_chat,
-    //     //             idempotency_key: data.idempotency_key
-    //     //         });
-    //     //     } catch (error) {    
-    //     //         console.log(error)
-    //     //         const user_id = data.is_physician ? data.physician_id : (data.is_patient ? data.patient_id : null);
-    //     //         socket.broadcast.emit(`${user_id}`, {
-    //     //             statusCode: 500,
-    //     //             message: "Internal Server Error in the catch block",
-    //     //             idempotency_key: data.idempotency_key
-    //     //         });
-    //     //     }
-    //     // });
-    //     // FOR VIDEO CALL
-    //     // WHEN CALL IS NOT ANSWERED
-    //     socket.on('call-not-answered', async (data: any, callback: any) => {
-    //         console.log('received ::  ', data);
-    //         callback({
-    //             statusCode: 200,
-    //             message: "The user you are trying to call is not available at the moment, please try again later thank you."
-    //         });
-    //         socket.emit('call-not-answered-response', {
-    //             statusCode: 200,
-    //             message: "The user you are trying to call is not available at the moment, please try again later thank you."
-    //         });
-    //         socket.broadcast.emit('call-not-answered-response', {
-    //             statusCode: 200,
-    //             message: "The user you are trying to call is not available at the moment, please try again later thank you."
-    //         });
-    //     });
-    //     // socket.on(`callAccepted`, async(data:any, callback:any)=>{
-    //     //     const {meetingId, patient_id, is_patient, physician_id, is_physician } = data
-    //     //     const user_id = data.is_physician ? data.physician_id : (data.is_patient ? data.patient_id : null);
-    //     //     const validation = await videoChatValidation(data)
-    //     //     if(validation?.statusCode == 422){
-    //     //         console.log(validation);
-    //     //         callback({status: false,statusCode: 422,message: validation.message,error: validation.message});
-    //     //         return;
-    //     //     }
-    //     //     const userAuth = await verifyUserAuth(data.auth_token);
-    //     //     if (userAuth.statusCode === 401) {
-    //     //         socket.emit(`${user_id}`, {
-    //     //             statusCode: 401,
-    //     //             message: userAuth.message,
-    //     //         });
-    //     //         return;
-    //     //     }
-    //     //     const caller = data.is_physician ? data.patient_id : (data.is_patient ? data.physician_id : null);
-    //     //     // to the receiver olone
-    //     //     socket.broadcast.emit(`accepted-call-${caller}`, {
-    //     //         statusCode: 200,
-    //     //         message: "your call has been accepted accepted your call"
-    //     //     })
-    //     //     // when a user leaves or cancels the call
-    //     //     socket.on(`leftCall`, (data: any,callback:any)=>{
-    //     //         // emit the response to the second user
-    //     //         const receiver = data.is_physician ? data.patient_id : (data.is_patient ? data.physician_id : null);
-    //     //         const user = data.is_physician ? "Doctor" : (data.is_patient ? "Patient" : "User")
-    //     //         socket.emit(`leftCall-${receiver}`, {
-    //     //             statusCode: 200,
-    //     //             message: `${user} left the call`
-    //     //         })
-    //     //     })
-    //     // })
-    // });
-    io.on('connection', (socket) => {
-        console.log('a user connected');
+    io.on("connection", (socket) => {
+        // for chat
+        socket.on('send-chat-text', (data, callback) => __awaiter(void 0, void 0, void 0, function* () {
+            try {
+                const validation = yield (0, authValidation_1.chatValidation)(data);
+                if ((validation === null || validation === void 0 ? void 0 : validation.statusCode) == 422) {
+                    console.log(validation);
+                    callback({ status: false, statusCode: 422, message: validation.message, error: validation.message });
+                    return;
+                }
+                const user_id = data.is_physician ? data.physician_id : (data.is_patient ? data.patient_id : null);
+                const userAuth = yield verifyUserAuth(data.token);
+                if (userAuth.statusCode === 401) {
+                    socket.emit(`${user_id}`, {
+                        statusCode: 401,
+                        message: userAuth.message,
+                        idempotency_key: data.idempotency_key,
+                    });
+                    return;
+                }
+                else if (userAuth.statusCode === 404) {
+                    socket.emit(`${user_id}`, {
+                        statusCode: 401,
+                        message: "Auth session id expired. Please login and get new x-id-key.",
+                        idempotency_key: data.idempotency_key
+                    });
+                    return;
+                }
+                else if (userAuth.statusCode === 500) {
+                    socket.emit(`${user_id}`, {
+                        statusCode: 500,
+                        message: "Internal Server Error",
+                        idempotency_key: data.idempotency_key
+                    });
+                    return;
+                }
+                const deduction = yield accountDeduction(userAuth.data, data);
+                if ((deduction === null || deduction === void 0 ? void 0 : deduction.statusCode) === 404 || (deduction === null || deduction === void 0 ? void 0 : deduction.statusCode) === 401 || (deduction === null || deduction === void 0 ? void 0 : deduction.statusCode) === 500) {
+                    socket.emit(`${user_id}`, {
+                        statusCode: deduction.statusCode,
+                        message: deduction.message,
+                        idempotency_key: data.idempotency_key
+                    });
+                    return;
+                }
+                const addition = yield accountAddition(userAuth.data, data);
+                if (addition.statusCode === 500) {
+                    //callback(addition);
+                    socket.emit(`${user_id}`, {
+                        statusCode: 500,
+                        message: "Error with accounting",
+                        idempotency_key: data.idempotency_key
+                    });
+                    return;
+                }
+                const saved_chat = yield createChat(data, userAuth.data);
+                if (saved_chat.statusCode === 500) {
+                    socket.emit(`${user_id}`, {
+                        statusCode: 500,
+                        message: "Error sending messages",
+                        idempotency_key: data.idempotency_key
+                    });
+                    return;
+                }
+                // sender receives a callback
+                socket.emit(`${user_id}`, {
+                    statusCode: 200,
+                    message: "Message sent succesfully, ",
+                    idempotency_key: data.idempotency_key,
+                    chat: saved_chat,
+                });
+                // Get the receiver ID
+                const receiver_id = data.is_physician ? data.patient_id : (data.is_patient ? data.physician_id : null);
+                // Broadcast to the receiver only
+                socket.broadcast.emit(`${receiver_id}`, {
+                    statusCode: 200,
+                    chat: saved_chat,
+                    senderData: userAuth.data,
+                    idempotency_key: data.idempotency_key,
+                    note: 'received'
+                });
+                // Broadcast to patient-physician (sender and receinver)
+                socket.broadcast.emit(`${data.patient_id}-${data.physician_id}`, {
+                    statusCode: 200,
+                    chat: saved_chat,
+                    idempotency_key: data.idempotency_key
+                });
+            }
+            catch (error) {
+                console.log(error);
+                const user_id = data.is_physician ? data.physician_id : (data.is_patient ? data.patient_id : null);
+                socket.broadcast.emit(`${user_id}`, {
+                    statusCode: 500,
+                    message: "Internal Server Error in the catch block",
+                    idempotency_key: data.idempotency_key
+                });
+            }
+        }));
+        // FOR VIDEO CALL
         // Listening for the call-not-answered event
-        socket.on('call-not-answered', (data, callback) => {
+        socket.on('call-not-answered', (data, callback) => __awaiter(void 0, void 0, void 0, function* () {
+            const validation = yield (0, authValidation_1.videoCallNotAnsweredValidation)(data);
+            if ((validation === null || validation === void 0 ? void 0 : validation.statusCode) == 422) {
+                console.log(validation);
+                callback({ status: false, statusCode: 422, message: validation.message, error: validation.message });
+                return;
+            }
             callback({ statusCode: 200, message: 'Call timed out.' });
             // Process the data as needed, then emit a response event
             const notAnsweredResponse = {
@@ -210,7 +166,7 @@ try {
             };
             // Emit the response back to the client
             socket.broadcast.emit('call-not-answered-response', notAnsweredResponse);
-        });
+        }));
         // Listening for the call-answered event
         socket.on('call-answered', (data, callback) => {
             callback({ statusCode: 200, message: `You've accepted the call` });

@@ -58,6 +58,7 @@ class VideoChat {
     
             let call_receiver = patient_id ? appointment.physician_id : (physician_id ? appointment.patient_id : null);
             let caller = patient_id ? patient_id : (physician_id ? physician_id : null)
+            
     
             if (call_receiver == null) {
                 return res.status(400).json({ err: 'Unable to determine the call receiver.' });
@@ -71,21 +72,18 @@ class VideoChat {
                     },
                 }
             );
+
         
         // now add a socket connection
 
         const meetingId = response.data.roomId
         
         io.emit(`video-call-${call_receiver}`, {
-            meetingId: meetingId,
+            meeting_id: meetingId,
             caller_id: caller,
-            patient_id: appointment.patient_id,
-            physician_id: appointment.physician_id
+            receiver_id: call_receiver,
         })
 
-        
-
-        console.log(response.data)
         return res.status(200).json(response.data);
 
         }catch (err:any) {

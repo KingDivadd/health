@@ -127,13 +127,13 @@ export const videoChatValidation = async ( data:any) => {
     }
 }
 
-export const videoCallNotAnsweredValidation = async ( data:any) => {
+export const videoCallValidation = async ( data:any) => {
     try {
         const schema = Joi.object({
-            meetingId: Joi.string().trim().required(),
-            physician_id: Joi.string().trim().required(),
-            patient_id: Joi.string().trim().required(),
+            meeting_id: Joi.string().trim().required(),
+            receiver_id: Joi.string().trim().required(),
             caller_id: Joi.string().trim().required,
+            token: Joi.string().trim().required,
         })
         
         

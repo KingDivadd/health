@@ -70,12 +70,10 @@ class VideoChat {
                 // now add a socket connection
                 const meetingId = response.data.roomId;
                 index_1.io.emit(`video-call-${call_receiver}`, {
-                    meetingId: meetingId,
+                    meeting_id: meetingId,
                     caller_id: caller,
-                    patient_id: appointment.patient_id,
-                    physician_id: appointment.physician_id
+                    receiver_id: call_receiver,
                 });
-                console.log(response.data);
                 return res.status(200).json(response.data);
             }
             catch (err) {

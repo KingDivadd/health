@@ -16,7 +16,7 @@ import handleDatabaseError from './middlewares/databaseUnavailable';
 import { CORS_OPTION, port, redis_url, vapid_private_key, vapid_public_key } from './helpers/constants';
 import connectToMongoDB from './config/mongodb';
 import chat from './controllers/chat';
-import authValidation, { chatValidation, videoCallNotAnsweredValidation, videoChatValidation } from './validations/authValidation';
+import authValidation, { chatValidation, videoCallValidation, videoChatValidation } from './validations/authValidation';
 
 const {validateChat, verifyUserAuth, createChat, accountDeduction, accountAddition} = chat
 
@@ -52,245 +52,227 @@ webpush.setVapidDetails(
 
 
 try {
-    // io.on("connection", (socket:any) => {
-    //     // for chat
-    //     // socket.on('send-chat-text', async (data: any, callback: any) => {         
-    //     //     try {
+    io.on("connection", (socket:any) => {
+        // for chat
+        socket.on('send-chat-text', async (data: any, callback: any) => {         
+            try {
 
-    //     //         const validation = await chatValidation(data)
-    //     //         if(validation?.statusCode == 422){
-    //     //             console.log(validation);
-    //     //             callback({status: false,statusCode: 422,message: validation.message,error: validation.message});
-    //     //             return;
-    //     //         }
+                const validation = await chatValidation(data)
+                if(validation?.statusCode == 422){
+                    console.log(validation);
+                    callback({status: false,statusCode: 422,message: validation.message,error: validation.message});
+                    return;
+                }
 
-    //     //         const user_id = data.is_physician ? data.physician_id : (data.is_patient ? data.patient_id : null);
+                const user_id = data.is_physician ? data.physician_id : (data.is_patient ? data.patient_id : null);
 
                 
-    //     //         const userAuth = await verifyUserAuth(data.token);
-    //     //         if (userAuth.statusCode === 401) {
+                const userAuth = await verifyUserAuth(data.token);
+                if (userAuth.statusCode === 401) {
 
-    //     //             socket.emit(`${user_id}`, {
-    //     //                 statusCode: 401,
-    //     //                 message: userAuth.message,
-    //     //                 idempotency_key: data.idempotency_key,
-    //     //             });
-    //     //             return;
-    //     //         }
-    //     //         else if (userAuth.statusCode === 404) {
-    //     //             socket.emit(`${user_id}`, {
-    //     //                 statusCode: 401,
-    //     //                 message: "Auth session id expired. Please login and get new x-id-key.",
-    //     //                 idempotency_key: data.idempotency_key
-    //     //             });
-    //     //             return;
-    //     //         }else if (userAuth.statusCode === 500){
-    //     //             socket.emit(`${user_id}`, {
-    //     //                 statusCode: 500,
-    //     //                 message: "Internal Server Error",
-    //     //                 idempotency_key: data.idempotency_key
-    //     //             });
-    //     //             return;
-    //     //         }
+                    socket.emit(`${user_id}`, {
+                        statusCode: 401,
+                        message: userAuth.message,
+                        idempotency_key: data.idempotency_key,
+                    });
+                    return;
+                }
+                else if (userAuth.statusCode === 404) {
+                    socket.emit(`${user_id}`, {
+                        statusCode: 401,
+                        message: "Auth session id expired. Please login and get new x-id-key.",
+                        idempotency_key: data.idempotency_key
+                    });
+                    return;
+                }else if (userAuth.statusCode === 500){
+                    socket.emit(`${user_id}`, {
+                        statusCode: 500,
+                        message: "Internal Server Error",
+                        idempotency_key: data.idempotency_key
+                    });
+                    return;
+                }
                 
-    //     //         const deduction = await accountDeduction(userAuth.data, data)
-    //     //         if (deduction?.statusCode === 404 || deduction?.statusCode === 401 || deduction?.statusCode === 500){
+                const deduction = await accountDeduction(userAuth.data, data)
+                if (deduction?.statusCode === 404 || deduction?.statusCode === 401 || deduction?.statusCode === 500){
 
-    //     //             socket.emit(`${user_id}`, {
-    //     //                 statusCode: deduction.statusCode,
-    //     //                 message: deduction.message,
-    //     //                 idempotency_key: data.idempotency_key
-    //     //             });
-    //     //             return;
-    //     //         }
+                    socket.emit(`${user_id}`, {
+                        statusCode: deduction.statusCode,
+                        message: deduction.message,
+                        idempotency_key: data.idempotency_key
+                    });
+                    return;
+                }
                 
-    //     //         const addition:any = await accountAddition(userAuth.data, data)
-    //     //         if (addition.statusCode === 500){
-    //     //             //callback(addition);
-    //     //             socket.emit(`${user_id}`, {
-    //     //                 statusCode: 500,
-    //     //                 message: "Error with accounting",
-    //     //                 idempotency_key: data.idempotency_key
-    //     //             });
-    //     //             return;
-    //     //         }
+                const addition:any = await accountAddition(userAuth.data, data)
+                if (addition.statusCode === 500){
+                    //callback(addition);
+                    socket.emit(`${user_id}`, {
+                        statusCode: 500,
+                        message: "Error with accounting",
+                        idempotency_key: data.idempotency_key
+                    });
+                    return;
+                }
                 
-    //     //         const saved_chat:any = await createChat(data, userAuth.data);
-    //     //         if (saved_chat.statusCode === 500 ){
-    //     //             socket.emit(`${user_id}`, {
-    //     //                 statusCode: 500,
-    //     //                 message: "Error sending messages",
-    //     //                 idempotency_key: data.idempotency_key
-    //     //             });
-    //     //             return;
-    //     //         }
+                const saved_chat:any = await createChat(data, userAuth.data);
+                if (saved_chat.statusCode === 500 ){
+                    socket.emit(`${user_id}`, {
+                        statusCode: 500,
+                        message: "Error sending messages",
+                        idempotency_key: data.idempotency_key
+                    });
+                    return;
+                }
 
-    //     //         // sender receives a callback
-    //     //         socket.emit(`${user_id}`, {
-    //     //             statusCode: 200,
-    //     //             message: "Message sent succesfully, ",
-    //     //             idempotency_key: data.idempotency_key,
-    //     //             chat: saved_chat,
-    //     //         });
+                // sender receives a callback
+                socket.emit(`${user_id}`, {
+                    statusCode: 200,
+                    message: "Message sent succesfully, ",
+                    idempotency_key: data.idempotency_key,
+                    chat: saved_chat,
+                });
     
-    //     //         // Get the receiver ID
-    //     //         const receiver_id = data.is_physician ? data.patient_id : (data.is_patient ? data.physician_id : null);
+                // Get the receiver ID
+                const receiver_id = data.is_physician ? data.patient_id : (data.is_patient ? data.physician_id : null);
 
-    //     //         // Broadcast to the receiver only
-    //     //         socket.broadcast.emit(`${receiver_id}`, {
-    //     //             statusCode: 200,
-    //     //             chat: saved_chat,
-    //     //             senderData: userAuth.data,
-    //     //             idempotency_key: data.idempotency_key,
-    //     //             note: 'received'
-    //     //         });
+                // Broadcast to the receiver only
+                socket.broadcast.emit(`${receiver_id}`, {
+                    statusCode: 200,
+                    chat: saved_chat,
+                    senderData: userAuth.data,
+                    idempotency_key: data.idempotency_key,
+                    note: 'received'
+                });
 
-    //     //         // Broadcast to patient-physician (sender and receinver)
-    //     //         socket.broadcast.emit(`${data.patient_id}-${data.physician_id}`, {
-    //     //             statusCode: 200,
-    //     //             chat: saved_chat,
-    //     //             idempotency_key: data.idempotency_key
-    //     //         });
+                // Broadcast to patient-physician (sender and receinver)
+                socket.broadcast.emit(`${data.patient_id}-${data.physician_id}`, {
+                    statusCode: 200,
+                    chat: saved_chat,
+                    idempotency_key: data.idempotency_key
+                });
 
                 
-    //     //     } catch (error) {    
-    //     //         console.log(error)
+            } catch (error) {    
+                console.log(error)
             
-    //     //         const user_id = data.is_physician ? data.physician_id : (data.is_patient ? data.patient_id : null);
+                const user_id = data.is_physician ? data.physician_id : (data.is_patient ? data.patient_id : null);
 
-    //     //         socket.broadcast.emit(`${user_id}`, {
-    //     //             statusCode: 500,
-    //     //             message: "Internal Server Error in the catch block",
-    //     //             idempotency_key: data.idempotency_key
-    //     //         });
-
-
+                socket.broadcast.emit(`${user_id}`, {
+                    statusCode: 500,
+                    message: "Internal Server Error in the catch block",
+                    idempotency_key: data.idempotency_key
+                });
             
-    //     //     }
-    //     // });
+            }
+        });
 
-    //     // FOR VIDEO CALL
+        // FOR VIDEO CALL
 
-    //     // WHEN CALL IS NOT ANSWERED
-        
-    //     socket.on('call-not-answered', async (data: any, callback: any) => {
-    //         console.log('received ::  ', data);
-        
-    //         callback({
-    //             statusCode: 200,
-    //             message: "The user you are trying to call is not available at the moment, please try again later thank you."
-    //         });
-        
-    //         socket.emit('call-not-answered-response', {
-    //             statusCode: 200,
-    //             message: "The user you are trying to call is not available at the moment, please try again later thank you."
-    //         });
-        
-    //         socket.broadcast.emit('call-not-answered-response', {
-    //             statusCode: 200,
-    //             message: "The user you are trying to call is not available at the moment, please try again later thank you."
-    //         });
-    //     });
-        
-
-    //     // socket.on(`callAccepted`, async(data:any, callback:any)=>{
-    //     //     const {meetingId, patient_id, is_patient, physician_id, is_physician } = data
-    //     //     const user_id = data.is_physician ? data.physician_id : (data.is_patient ? data.patient_id : null);
-
-    //     //     const validation = await videoChatValidation(data)
-    //     //     if(validation?.statusCode == 422){
-    //     //         console.log(validation);
-    //     //         callback({status: false,statusCode: 422,message: validation.message,error: validation.message});
-    //     //         return;
-    //     //     }
-
-    //     //     const userAuth = await verifyUserAuth(data.auth_token);
-    //     //     if (userAuth.statusCode === 401) {
-    //     //         socket.emit(`${user_id}`, {
-    //     //             statusCode: 401,
-    //     //             message: userAuth.message,
-    //     //         });
-    //     //         return;
-    //     //     }
-
-
-    //     //     const caller = data.is_physician ? data.patient_id : (data.is_patient ? data.physician_id : null);
-
-    //     //     // to the receiver olone
-    //     //     socket.broadcast.emit(`accepted-call-${caller}`, {
-    //     //         statusCode: 200,
-    //     //         message: "your call has been accepted accepted your call"
-    //     //     })
-
-    //     //     // when a user leaves or cancels the call
-    //     //     socket.on(`leftCall`, (data: any,callback:any)=>{
-
-    //     //         // emit the response to the second user
-    //     //         const receiver = data.is_physician ? data.patient_id : (data.is_patient ? data.physician_id : null);
-    //     //         const user = data.is_physician ? "Doctor" : (data.is_patient ? "Patient" : "User")
-    //     //         socket.emit(`leftCall-${receiver}`, {
-    //     //             statusCode: 200,
-    //     //             message: `${user} left the call`
-    //     //         })
-    //     //     })
-    //     // })
-        
-    // });
-
-    
-    
-    io.on('connection', (socket:any) => {
-        console.log('a user connected');
-    
         // Listening for the call-not-answered event
-        socket.on('call-not-answered', (data:any, callback:any) => {
-            callback({statusCode: 200, message: 'Call timed out.'})
-            // Process the data as needed, then emit a response event
-            const notAnsweredResponse = {
-                statusCode: 200,
-                message: `User not available now, please try again later`
-            };
+        socket.on('call-not-answered', async(data:any, callback:any) => {
+            try {
+                
+                
+                const validation = await videoCallValidation(data)
+                if(validation?.statusCode == 422){
+                    console.log(validation);
+                    callback({status: false,statusCode: 422,message: validation.message,error: validation.message});
+                    return;
+                }
+                const {meeting_id, caller_id, receiver_id, } = data
+
+                callback({statusCode: 200, message: `Call wasn't answered`, meeting_id, caller_id, receiver_id})            
+        
+                // Emit the response back to the caller
+                socket.broadcast.emit(`call-not-answered-${data.caller_id}`, {
+                    statusCode: 200,
+                    message: `User not available at the moment, please try again later.`,
+                    meeting_id, caller_id, receiver_id
+                } );
+        
+                } catch (error: any) {
+                    console.log(error)
             
-    
-            // Emit the response back to the client
-            socket.broadcast.emit('call-not-answered-response', notAnsweredResponse);
-    
+                    socket.broadcast.emit(`video-call-${data.receiver_id}`, {
+                        statusCode: 500,
+                        message: "Internal Server Error in the catch block",
+                        meeting_id: data.meeting_id
+                    });
+                }
         });
     
-        // Listening for the call-answered event
-        socket.on('call-answered', (data:any, callback:any) => {
-            callback({statusCode: 200, message:`You've accepted the call`})
-            // Process the data as needed, then emit a response event
-            const notAnsweredResponse = {
-                statusCode: 200,
-                message: `User not available now, please try again later`
-            };
-            
-    
-            // Emit the response back to the client
-            socket.broadcast.emit('call-answered-response', notAnsweredResponse);
-    
+        // Listening for the answered call event
+        socket.on('call-answered', async(data:any, callback:any) => {
+            try {
+                const validation = await videoCallValidation(data)
+                if(validation?.statusCode == 422){
+                    console.log(validation);
+                    callback({status: false,statusCode: 422,message: validation.message,error: validation.message});
+                    return;
+                }
+
+                const {meeting_id, caller_id, receiver_id, } = data
+
+                callback({statusCode: 200, message: `You've answred your call `, meeting_id, caller_id, receiver_id})            
+        
+                // Emit the response back to the caller
+                socket.broadcast.emit(`call-answered-${data.caller_id}`, {
+                    statusCode: 200,
+                    message: `User has accepted your call, you can now begin conferencing`,
+                    meeting_id, caller_id, receiver_id
+                } );
+        
+                } catch (error: any) {
+                    console.log(error)
+                
+                    const user_id = data.is_physician ? data.physician_id : (data.is_patient ? data.patient_id : null);
+
+                    socket.broadcast.emit(`video-call-${data.receiver_id}`, {
+                        statusCode: 500,
+                        message: "Internal Server Error in the catch block",
+                        meeting_id: data.meeting_id
+                    });
+                }
+        });
+
+        // Listening for the call rejection event
+        socket.on('call-rejected', async(data:any, callback:any) => {
+            try {
+                
+                const validation = await videoCallValidation(data)
+                if(validation?.statusCode == 422){
+                    console.log(validation);
+                    callback({status: false,statusCode: 422,message: validation.message,error: validation.message});
+                    return;
+                }
+                const {meeting_id, caller_id, receiver_id, } = data
+
+                callback({statusCode: 200, message: `You've rejected an incomming call. `, meeting_id, caller_id, receiver_id})            
+        
+                // Emit the response back to the caller
+                socket.broadcast.emit(`call-rejected-${data.caller_id}`, {
+                    statusCode: 200,
+                    message: `User is busy, Please try again later, thank you.`,
+                    meeting_id, caller_id, receiver_id
+                } );
+        
+                } catch (error: any) {
+                    console.log(error)
+                
+                    const user_id = data.is_physician ? data.physician_id : (data.is_patient ? data.patient_id : null);
+
+                    socket.broadcast.emit(`video-call-${data.receiver_id}`, {
+                        statusCode: 500,
+                        message: "Internal Server Error in the catch block",
+                        meeting_id: data.meeting_id
+                    });
+                }
         });
     
-        // Listening for the call-rejected event
-        socket.on('call-rejected', (data:any, callback:any) => {
-            callback({statusCode: 200, message:`You've rejected the call`})
-            // Process the data as needed, then emit a response event
-            const notAnsweredResponse = {
-                statusCode: 200,
-                message: `User rejected your call, please try again later`
-            };
-            
     
-            // Emit the response back to the client
-            socket.broadcast.emit('call-rejected-response', notAnsweredResponse);
-    
-        });
-    
-        socket.on('disconnect', () => {
-            console.log('user disconnected');
-        });
     });
+
     
 } catch (err:any) {
     console.log('Caught error while trying to yse socket. ', err)

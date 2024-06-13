@@ -135,10 +135,10 @@ exports.videoChatValidation = videoChatValidation;
 const videoCallNotAnsweredValidation = (data) => __awaiter(void 0, void 0, void 0, function* () {
     try {
         const schema = joi_1.default.object({
-            meetingId: joi_1.default.string().trim().required(),
-            physician_id: joi_1.default.string().trim().required(),
-            patient_id: joi_1.default.string().trim().required(),
+            meeting_id: joi_1.default.string().trim().required(),
+            receiver_id: joi_1.default.string().trim().required(),
             caller_id: joi_1.default.string().trim().required,
+            token: joi_1.default.string().trim().required,
         });
         const value = yield schema.validateAsync(Object.assign({}, data));
         return ({
