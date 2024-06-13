@@ -79,6 +79,7 @@ class VideoChat {
         const meetingId = response.data.roomId
         
         io.emit(`video-call-${call_receiver}`, {
+            statusCode: 200,
             meeting_id: meetingId,
             caller_id: caller,
             receiver_id: call_receiver,
