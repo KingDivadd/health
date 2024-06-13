@@ -114,7 +114,7 @@ export const videoChatValidation = async ( data:any) => {
             status: true,
             data: value,
             message: 'validated succesfully',
-            statusCode: 401,
+            statusCode: 200,
         });
         } catch (error:any) {
             console.log(error)
@@ -128,7 +128,19 @@ export const videoChatValidation = async ( data:any) => {
 }
 export const videoValidation = async (data:any) => {
     try {
-        return
+        const schema = Joi.object({
+            meeting_id: Joi.string().trim().required(),
+            caller_id: Joi.string().trim().required(),
+            receiver_id: Joi.string().trim().required(),
+            token: Joi.string().trim().required(),
+        })
+        const { error: validation_error } = schema.validate(data)
+
+        if (validation_error) {
+            const error_message = validation_error.message.replace(/"/g, '');
+            return ({ statusCode: 422, error: error_message, message: error_message });
+        }
+        return ({statusCode: 200, messge: 'Validated successfully', caller_id: data.caller_id, receiver_id: data.receiver_id, meeting_id: data.meeting_id })
     } catch (error: any) {
         console.log(error);
         return {
