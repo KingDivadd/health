@@ -16,7 +16,7 @@ import handleDatabaseError from './middlewares/databaseUnavailable';
 import { CORS_OPTION, port, redis_url, vapid_private_key, vapid_public_key } from './helpers/constants';
 import connectToMongoDB from './config/mongodb';
 import chat from './controllers/chat';
-import authValidation, { chatValidation, videoCallValidation, videoChatValidation } from './validations/authValidation';
+import authValidation, { chatValidation, videoValidation, videoChatValidation } from './validations/authValidation';
 
 const {validateChat, verifyUserAuth, createChat, accountDeduction, accountAddition} = chat
 
@@ -174,7 +174,7 @@ try {
             try {
                 
                 
-                const validation = await videoCallValidation(data)
+                const validation = await videoValidation(data)
                 if(validation?.statusCode == 422){
                     console.log(validation);
                     callback({status: false,statusCode: 422,message: validation.message,error: validation.message});
@@ -205,7 +205,7 @@ try {
         // Listening for the answered call event
         socket.on('call-answered', async(data:any, callback:any) => {
             try {
-                const validation = await videoCallValidation(data)
+                const validation = await videoValidation(data)
                 if(validation?.statusCode == 422){
                     console.log(validation);
                     callback({status: false,statusCode: 422,message: validation.message,error: validation.message});
@@ -240,7 +240,7 @@ try {
         socket.on('call-rejected', async(data:any, callback:any) => {
             try {
                 
-                const validation = await videoCallValidation(data)
+                const validation = await videoValidation(data)
                 if(validation?.statusCode == 422){
                     console.log(validation);
                     callback({status: false,statusCode: 422,message: validation.message,error: validation.message});

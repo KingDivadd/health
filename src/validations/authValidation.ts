@@ -127,7 +127,7 @@ export const videoChatValidation = async ( data:any) => {
     }
 }
 
-export const videoCallValidation = async ( data:any) => {
+export const videoValidation = async ( data:any) => {
     try {
         const schema = Joi.object({
             meeting_id: Joi.string().trim().required(),
