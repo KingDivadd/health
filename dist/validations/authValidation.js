@@ -12,7 +12,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.videoCallNotAnsweredValidation = exports.videoChatValidation = exports.chatValidation = void 0;
+exports.videoValidation = exports.videoChatValidation = exports.chatValidation = void 0;
 const joi_1 = __importDefault(require("joi"));
 class HelperValidation {
     constructor() {
@@ -118,7 +118,7 @@ const videoChatValidation = (data) => __awaiter(void 0, void 0, void 0, function
             status: true,
             data: value,
             message: 'validated succesfully',
-            statusCode: 401,
+            statusCode: 200,
         });
     }
     catch (error) {
@@ -132,31 +132,30 @@ const videoChatValidation = (data) => __awaiter(void 0, void 0, void 0, function
     }
 });
 exports.videoChatValidation = videoChatValidation;
-const videoCallNotAnsweredValidation = (data) => __awaiter(void 0, void 0, void 0, function* () {
+const videoValidation = (data) => __awaiter(void 0, void 0, void 0, function* () {
     try {
         const schema = joi_1.default.object({
             meeting_id: joi_1.default.string().trim().required(),
+            caller_id: joi_1.default.string().trim().required(),
             receiver_id: joi_1.default.string().trim().required(),
-            caller_id: joi_1.default.string().trim().required,
-            token: joi_1.default.string().trim().required,
+            token: joi_1.default.string().trim().required(),
         });
-        const value = yield schema.validateAsync(Object.assign({}, data));
-        return ({
-            status: true,
-            data: value,
-            message: 'validated succesfully',
-            statusCode: 401,
-        });
+        const { error: validation_error } = schema.validate(data);
+        if (validation_error) {
+            const error_message = validation_error.message.replace(/"/g, '');
+            return ({ statusCode: 422, error: error_message, message: error_message });
+        }
+        return ({ statusCode: 200, messge: 'Validated successfully', caller_id: data.caller_id, receiver_id: data.receiver_id, meeting_id: data.meeting_id });
     }
     catch (error) {
         console.log(error);
-        return ({
+        return {
             status: false,
             statusCode: 422,
-            message: error.details[0].message,
-            error: error.details[0].message,
-        });
+            message: error.details ? error.details[0].message : error.message,
+            error: error.details ? error.details[0].message : error.message,
+        };
     }
 });
-exports.videoCallNotAnsweredValidation = videoCallNotAnsweredValidation;
+exports.videoValidation = videoValidation;
 //# sourceMappingURL=authValidation.js.map

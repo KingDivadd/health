@@ -152,46 +152,87 @@ try {
         // FOR VIDEO CALL
         // Listening for the call-not-answered event
         socket.on('call-not-answered', (data, callback) => __awaiter(void 0, void 0, void 0, function* () {
-            const validation = yield (0, authValidation_1.videoCallNotAnsweredValidation)(data);
-            if ((validation === null || validation === void 0 ? void 0 : validation.statusCode) == 422) {
-                console.log(validation);
-                callback({ status: false, statusCode: 422, message: validation.message, error: validation.message });
-                return;
+            try {
+                const validation = yield (0, authValidation_1.videoValidation)(data);
+                if ((validation === null || validation === void 0 ? void 0 : validation.statusCode) == 422) {
+                    console.log(validation);
+                    callback({ status: false, statusCode: 422, message: validation.message, error: validation.message });
+                    return;
+                }
+                const { meeting_id, caller_id, receiver_id, } = data;
+                callback({ statusCode: 200, message: `Call wasn't answered`, meeting_id, caller_id, receiver_id });
+                // Emit the response back to the caller
+                socket.broadcast.emit(`call-not-answered-${data.caller_id}`, {
+                    statusCode: 200,
+                    message: `User not available at the moment, please try again later.`,
+                    meeting_id, caller_id, receiver_id
+                });
             }
-            callback({ statusCode: 200, message: 'Call timed out.' });
-            // Process the data as needed, then emit a response event
-            const notAnsweredResponse = {
-                statusCode: 200,
-                message: `User not available now, please try again later`
-            };
-            // Emit the response back to the client
-            socket.broadcast.emit('call-not-answered-response', notAnsweredResponse);
+            catch (error) {
+                console.log(error);
+                socket.broadcast.emit(`video-call-${data.receiver_id}`, {
+                    statusCode: 500,
+                    message: "Internal Server Error in the catch block",
+                    meeting_id: data.meeting_id
+                });
+            }
         }));
-        // Listening for the call-answered event
-        socket.on('call-answered', (data, callback) => {
-            callback({ statusCode: 200, message: `You've accepted the call` });
-            // Process the data as needed, then emit a response event
-            const notAnsweredResponse = {
-                statusCode: 200,
-                message: `User not available now, please try again later`
-            };
-            // Emit the response back to the client
-            socket.broadcast.emit('call-answered-response', notAnsweredResponse);
-        });
-        // Listening for the call-rejected event
-        socket.on('call-rejected', (data, callback) => {
-            callback({ statusCode: 200, message: `You've rejected the call` });
-            // Process the data as needed, then emit a response event
-            const notAnsweredResponse = {
-                statusCode: 200,
-                message: `User rejected your call, please try again later`
-            };
-            // Emit the response back to the client
-            socket.broadcast.emit('call-rejected-response', notAnsweredResponse);
-        });
-        socket.on('disconnect', () => {
-            console.log('user disconnected');
-        });
+        // Listening for the answered call event
+        socket.on('call-answered', (data, callback) => __awaiter(void 0, void 0, void 0, function* () {
+            try {
+                const validation = yield (0, authValidation_1.videoValidation)(data);
+                if ((validation === null || validation === void 0 ? void 0 : validation.statusCode) == 422) {
+                    console.log(validation);
+                    callback({ status: false, statusCode: 422, message: validation.message, error: validation.message });
+                    return;
+                }
+                const { meeting_id, caller_id, receiver_id, } = data;
+                callback({ statusCode: 200, message: `You've answred your call `, meeting_id, caller_id, receiver_id });
+                // Emit the response back to the caller
+                socket.broadcast.emit(`call-answered-${data.caller_id}`, {
+                    statusCode: 200,
+                    message: `User has accepted your call, you can now begin conferencing`,
+                    meeting_id, caller_id, receiver_id
+                });
+            }
+            catch (error) {
+                console.log(error);
+                const user_id = data.is_physician ? data.physician_id : (data.is_patient ? data.patient_id : null);
+                socket.broadcast.emit(`video-call-${data.receiver_id}`, {
+                    statusCode: 500,
+                    message: "Internal Server Error in the catch block",
+                    meeting_id: data.meeting_id
+                });
+            }
+        }));
+        // Listening for the call rejection event
+        socket.on('call-rejected', (data, callback) => __awaiter(void 0, void 0, void 0, function* () {
+            try {
+                const validation = yield (0, authValidation_1.videoValidation)(data);
+                if ((validation === null || validation === void 0 ? void 0 : validation.statusCode) == 422) {
+                    console.log(validation);
+                    callback({ status: false, statusCode: 422, message: validation.message, error: validation.message });
+                    return;
+                }
+                const { meeting_id, caller_id, receiver_id, } = data;
+                callback({ statusCode: 200, message: `You've rejected an incomming call. `, meeting_id, caller_id, receiver_id });
+                // Emit the response back to the caller
+                socket.broadcast.emit(`call-rejected-${data.caller_id}`, {
+                    statusCode: 200,
+                    message: `User is busy, Please try again later, thank you.`,
+                    meeting_id, caller_id, receiver_id
+                });
+            }
+            catch (error) {
+                console.log(error);
+                const user_id = data.is_physician ? data.physician_id : (data.is_patient ? data.patient_id : null);
+                socket.broadcast.emit(`video-call-${data.receiver_id}`, {
+                    statusCode: 500,
+                    message: "Internal Server Error in the catch block",
+                    meeting_id: data.meeting_id
+                });
+            }
+        }));
     });
 }
 catch (err) {
