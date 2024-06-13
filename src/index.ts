@@ -56,7 +56,8 @@ try {
         // for chat
         socket.on('send-chat-text', async (data: any, callback: any) => {         
             try {
-                
+                callback({status: false,statusCode: 422,message: "Testing ....."});
+
                 const validation = await chatValidation(data)
                 if(validation?.statusCode == 422){
                     console.log(validation);
