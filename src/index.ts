@@ -173,31 +173,25 @@ try {
 
         // WHEN CALL IS NOT ANSWERED
         
-        socket.on(`call-not-answered`, async(data: any, callback: any)=>{
-            // const validation = await videoCallNotAnsweredValidation(data)
-            // if(validation?.statusCode == 422){
-            //     console.log(validation);
-            //     callback({status: false,statusCode: 422,message: validation.message,error: validation.message});
-            //     return;
-            // }
-            
-            console.log('received ::  ', data)
-
-            socket.emit(`call-not-answered-response`, {
+        socket.on('call-not-answered', async (data: any, callback: any) => {
+            console.log('received ::  ', data);
+        
+            callback({
                 statusCode: 200,
-                message: "Message sent succesfully,",
+                message: "The user you are trying to call is not available at the moment, please try again later thank you."
             });
-
-            socket.broadcast.emit(`call-not-answered-response`, {
+        
+            socket.emit('call-not-answered-response', {
                 statusCode: 200,
                 message: "The user you are trying to call is not available at the moment, please try again later thank you."
-            })
-
-            socket.emit(`call-not-answered-response`, {
+            });
+        
+            socket.broadcast.emit('call-not-answered-response', {
                 statusCode: 200,
                 message: "The user you are trying to call is not available at the moment, please try again later thank you."
-            })
-        })
+            });
+        });
+        
 
         socket.on(`callAccepted`, async(data:any, callback:any)=>{
             const {meetingId, patient_id, is_patient, physician_id, is_physician } = data
