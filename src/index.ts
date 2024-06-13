@@ -28,7 +28,7 @@ const server = http.createServer(app);
 
 const io:any = new Server(server, {
     cors: {
-        origin: "http://localhost:3000",
+        origin: "*",
         methods: ["GET", "POST"]
     }
 });
@@ -249,6 +249,12 @@ try {
             // Process the data as needed, then emit a response event
             const response = {
                 statusCode: 200,
+                title: 'normal response',
+                message: 'Call not answered event processed successfully'
+            };
+            const callbackResponse = {
+                statusCode: 200,
+                title: 'callback response',
                 message: 'Call not answered event processed successfully'
             };
     
@@ -256,7 +262,7 @@ try {
             socket.emit('call-not-answered-response', response);
     
             // Call the callback function with the response if necessary
-            if (callback) callback(response);
+            if (callback) callback(callbackResponse);
         });
     
         socket.on('disconnect', () => {
