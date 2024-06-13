@@ -132,8 +132,8 @@ export const videoCallValidation = async ( data:any) => {
         const schema = Joi.object({
             meeting_id: Joi.string().trim().required(),
             receiver_id: Joi.string().trim().required(),
-            caller_id: Joi.string().trim().required,
-            token: Joi.string().trim().required,
+            caller_id: Joi.string().trim().required(),
+            token: Joi.string().trim().required(),
         })
         
         
