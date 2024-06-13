@@ -259,7 +259,7 @@ try {
             };
     
             // Emit the response back to the client
-            socket.emit('call-not-answered-response', response);
+            socket.broadcast.emit('call-not-answered-response', response);
     
             // Call the callback function with the response if necessary
             if (callback) callback(callbackResponse);
