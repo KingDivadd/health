@@ -205,12 +205,12 @@ try {
         // Listening for the answered call event
         socket.on('call-answered', async(data:any, callback:any) => {
             try {
-                // const validation = await videoValidation(data)
-                // if(validation?.statusCode == 422){
-                //     console.log(validation);
-                //     callback({status: false,statusCode: 422,message: validation.message,error: validation.message});
-                //     return;
-                // }
+                const validation = await videoValidation(data)
+                if(validation?.statusCode == 422){
+                    console.log(validation);
+                    callback({status: false,statusCode: 422,message: validation.message,error: validation.message});
+                    return;
+                }
 
                 const {meeting_id, caller_id, receiver_id, } = data
 
@@ -239,7 +239,6 @@ try {
         // Listening for the call rejection event
         socket.on('call-rejected', async(data:any, callback:any) => {
             try {
-                
                 const validation = await videoValidation(data)
                 if(validation?.statusCode == 422){
                     console.log(validation);
@@ -254,6 +253,39 @@ try {
                 socket.broadcast.emit(`call-rejected-${data.caller_id}`, {
                     statusCode: 200,
                     message: `User is busy, Please try again later, thank you.`,
+                    meeting_id, caller_id, receiver_id
+                } );
+        
+                } catch (error: any) {
+                    console.log(error)
+                
+                    const user_id = data.is_physician ? data.physician_id : (data.is_patient ? data.patient_id : null);
+
+                    socket.broadcast.emit(`video-call-${data.receiver_id}`, {
+                        statusCode: 500,
+                        message: "Internal Server Error in the catch block",
+                        meeting_id: data.meeting_id
+                    });
+                }
+        });
+    
+        // Listening for the call disconnected event
+        socket.on('call-disconnected', async(data:any, callback:any) => {
+            try {
+                const validation = await videoValidation(data)
+                if(validation?.statusCode == 422){
+                    console.log(validation);
+                    callback({status: false,statusCode: 422,message: validation.message,error: validation.message});
+                    return;
+                }
+                const {meeting_id, caller_id, receiver_id, } = data
+
+                callback({statusCode: 200, message: `You're no longer conected. `, meeting_id, caller_id, receiver_id})            
+        
+                // Emit the response back to the caller
+                socket.broadcast.emit(`call-rejected-${data.caller_id}`, {
+                    statusCode: 200,
+                    message: `User is disconnected.`,
                     meeting_id, caller_id, receiver_id
                 } );
         
