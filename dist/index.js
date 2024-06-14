@@ -197,7 +197,6 @@ try {
             }
             catch (error) {
                 console.log(error);
-                const user_id = data.is_physician ? data.physician_id : (data.is_patient ? data.patient_id : null);
                 socket.broadcast.emit(`video-call-${data.receiver_id}`, {
                     statusCode: 500,
                     message: "Internal Server Error in the catch block",
@@ -220,6 +219,33 @@ try {
                 socket.broadcast.emit(`call-rejected-${data.caller_id}`, {
                     statusCode: 200,
                     message: `User is busy, Please try again later, thank you.`,
+                    meeting_id, caller_id, receiver_id
+                });
+            }
+            catch (error) {
+                console.log(error);
+                socket.broadcast.emit(`video-call-${data.receiver_id}`, {
+                    statusCode: 500,
+                    message: "Internal Server Error in the catch block",
+                    meeting_id: data.meeting_id
+                });
+            }
+        }));
+        // Listening for the call disconnected event
+        socket.on('call-disconnected', (data, callback) => __awaiter(void 0, void 0, void 0, function* () {
+            try {
+                const validation = yield (0, authValidation_1.videoValidation)(data);
+                if ((validation === null || validation === void 0 ? void 0 : validation.statusCode) == 422) {
+                    console.log(validation);
+                    callback({ status: false, statusCode: 422, message: validation.message, error: validation.message });
+                    return;
+                }
+                const { meeting_id, caller_id, receiver_id, } = data;
+                callback({ statusCode: 200, message: `You're no longer conected. `, meeting_id, caller_id, receiver_id });
+                // Emit the response back to the caller
+                socket.broadcast.emit(`call-disconnected-${data.caller_id}`, {
+                    statusCode: 200,
+                    message: `User is disconnected.`,
                     meeting_id, caller_id, receiver_id
                 });
             }
