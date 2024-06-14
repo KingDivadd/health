@@ -205,12 +205,12 @@ try {
         // Listening for the answered call event
         socket.on('call-answered', async(data:any, callback:any) => {
             try {
-                const validation = await videoValidation(data)
-                if(validation?.statusCode == 422){
-                    console.log(validation);
-                    callback({status: false,statusCode: 422,message: validation.message,error: validation.message});
-                    return;
-                }
+                // const validation = await videoValidation(data)
+                // if(validation?.statusCode == 422){
+                //     console.log(validation);
+                //     callback({status: false,statusCode: 422,message: validation.message,error: validation.message});
+                //     return;
+                // }
 
                 const {meeting_id, caller_id, receiver_id, } = data
 
