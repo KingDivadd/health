@@ -58,6 +58,24 @@ class HelperValidation {
             return res.status(422).json({ err: 'Error during password update validation' })
         }
     }
+
+    saveSubscriptionValid = async (req: Request, res: Response, next: NextFunction) => {
+        try {
+            const schema = Joi.object({
+                subscription: Joi.string().trim().required()
+            })
+            const { error: validation_error } = schema.validate(req.body)
+
+            if (validation_error) {
+                const error_message = validation_error.message.replace(/"/g, '');
+                return res.status(422).json({ err: error_message });
+            }
+            return next()
+        } catch (err) {
+            console.log(err)
+            return res.status(422).json({ err: 'Error save subscription validation' })
+        }
+    }
     
 }
 
@@ -114,7 +132,7 @@ export const videoChatValidation = async ( data:any) => {
             status: true,
             data: value,
             message: 'validated succesfully',
-            statusCode: 200,
+            statusCode: 401,
         });
         } catch (error:any) {
             console.log(error)
@@ -126,9 +144,11 @@ export const videoChatValidation = async ( data:any) => {
         });
     }
 }
+
 export const videoValidation = async (data:any) => {
     try {
         const schema = Joi.object({
+            appointment_id: Joi.string().trim().required(),
             meeting_id: Joi.string().trim().required(),
             caller_id: Joi.string().trim().required(),
             receiver_id: Joi.string().trim().required(),

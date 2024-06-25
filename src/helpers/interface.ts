@@ -1,7 +1,7 @@
 import { Document, PopulatedDoc } from "mongoose";
 
 export interface CustomRequest {
-    params: { page_number?: number | undefined; patient_id?: string | undefined; physician_id?: string | undefined; caseNote_id?: string | undefined; appointment_id?: string | undefined; status?: string | undefined; meetingId?: string | undefined; roomId?: string | undefined; page?:number | undefined; perPage?:number | undefined; sessionId?: string | undefined; notificationId?: string | undefined };
+    params: { page_number?: number | undefined; patient_id?: string | undefined; physician_id?: string | undefined; case_note_id?: string | undefined; appointment_id?: string | undefined; status?: string | undefined; meetingId?: string | undefined; roomId?: string | undefined; page?:number | undefined; perPage?:number | undefined; sessionId?: string | undefined; notificationId?: string | undefined; transaction_type?:string | undefined };
 
     query: { page?: number | undefined; perPage?: number | undefined; };
     decodedToken?: any;
@@ -22,6 +22,7 @@ export interface CustomRequest {
     updated_user?:any;
     patientModel?:any;
     physicianModel?:any;
+    pushNotificationData?:any;
 }
 
 
@@ -67,3 +68,10 @@ export interface redisDataProps {
     user: any;
     life_time?: number;
 }
+
+export interface redisCallDataProps {
+    user_id: any;
+    availability: any;
+    life_time?: number;
+}
+

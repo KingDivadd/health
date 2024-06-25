@@ -1,5 +1,4 @@
 import { Request, Response, NextFunction } from 'express'
-import { PrismaClient } from '@prisma/client'
 import generateOTP, { generateReferralCode } from '../helpers/generateOTP';
 import { salt_round } from '../helpers/constants';
 import redisFunc from '../helpers/redisFunc';
@@ -7,10 +6,9 @@ import { CustomRequest } from '../helpers/interface';
 import { sendMailOtp } from '../helpers/email';
 import { sendSMSOtp } from '../helpers/sms';
 import convertedDatetime from '../helpers/currrentDateTime';
-import auth from '../helpers/auth';
 const { Decimal } = require('decimal.js')
 const bcrypt = require('bcrypt')
-const prisma = new PrismaClient()
+import prisma from '../helpers/prisma'
 
 const { redisAuthStore, redisOtpStore, redisValueUpdate, redisOtpUpdate, redisDataDelete } = redisFunc
 
@@ -46,7 +44,7 @@ class Authentication {
             const x_id_key = await redisAuthStore(user, 60 * 60 * 23)
             res.setHeader('x-id-key', x_id_key)
             console.log('user ',user)
-            return res.status(201).json({msg: 'User created successfully, proceed to continuing setting up your profile'})
+            return res.status(201).json({msg: 'User created successfully, proceed to continuing setting up your profile.'})
         } catch (err: any) {
             console.error('Error during patient signup : ', err);
             return res.status(500).json({ err: 'Internal server error.', error: err });
@@ -91,15 +89,20 @@ class Authentication {
     patientLogin = async (req: CustomRequest, res: Response, next: NextFunction) => {
         const { email, password } = req.body
         try {
+            console.log(1)
             const user:any = await prisma.patient.findUnique({
                 where: {email}
             })
+            console.log(2)
             if (!user){
+                console.log(3)
                 return res.status(404).json({err: 'Incorrect email address, check email and try again'})
             }
+            console.log(4)
             if (!user?.is_verified) {
                 return res.status(401).json({ msg: 'Your account is not verified, please verify before proceeding',  is_verified: user.is_verified })
             }
+            console.log(5)
             
             const encrypted_password = user.password
             const match_password: boolean = await bcrypt.compare(password, encrypted_password)
@@ -107,8 +110,10 @@ class Authentication {
                 return res.status(401).json({ err: `Incorrect password, correct password and try again.` })
             }
             const new_auth_id:any = await redisAuthStore(user, 60 * 60 * 23)
-
+            
+            console.log(6)
             res.setHeader('x-id-key', new_auth_id)
+            console.log(7)
 
             return res.status(200).json({ msg: "Login successful", user_data: user })
         } catch (err) {
@@ -120,31 +125,37 @@ class Authentication {
     physicianLogin = async (req: CustomRequest, res: Response, next: NextFunction) => {
         const { email, password } = req.body
         try {
-            
+            console.log(11)
             const user:any = await prisma.physician.findUnique({
                 where: {email}
             })
+            console.log(22)
             if (!user){
+                console.log(33)
                 return res.status(404).json({err: 'Incorrect email address'})
             }
+            console.log(44)
             if (!user?.is_verified) {
+                console.log(55)
                 return res.status(401).json({ msg: 'Your account is not verified, please verify before proceeding',  is_verified: user.is_verified })
             }  
-
+            
+            console.log(66)
             const encrypted_password = user.password
             const match_password: boolean = await bcrypt.compare(password, encrypted_password)
             if (!match_password) {
                 return res.status(401).json({ err: `Incorrect password, correct password and try again.` })
             }
+            console.log(77)
             const new_auth_id:any = await redisAuthStore(user, 60 * 60 * 23)
-
-
+            
             res.setHeader('x-id-key', new_auth_id)
+            console.log(88)
 
             return res.status(200).json({ msg: "Login successful", user_data: user, })
         } catch (err) {
             console.log('Error during physician login', err)
-            return res.status(500).json({ err: 'Internal server error in physician signup',error:err, })
+            return res.status(500).json({ err: 'Internal server error',error:err, })
         }
     }
 

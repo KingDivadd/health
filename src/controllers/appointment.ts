@@ -1,12 +1,15 @@
-import { Request, Response, NextFunction } from 'express'
-import { PrismaClient } from '@prisma/client'
+import { Request, Response, NextFunction, } from 'express'
 import { CustomRequest } from '../helpers/interface';
 import { sendMailAcceptedAppointment, sendMailAppointmentCancelled, sendMailAppointmentCancelledByPatient, sendMailAppointmentDenied, sendMailBookingAppointment } from '../helpers/email';
 import convertedDatetime, {readableDate} from '../helpers/currrentDateTime';
-const prisma = new PrismaClient()
+import { io } from '../index';
+import prisma from '../helpers/prisma'
+import { videosdk_api_key, videosdk_endpoint, videosdk_secret_key } from '../helpers/constants';
+import axios from 'axios';
+const jwt = require('jsonwebtoken')
 
 class Appointment {
-    createAppointment = async (req: CustomRequest, res: Response, next: NextFunction) => {
+    bookAppointment = async (req: CustomRequest, res: Response, next: NextFunction) => {
         try {
             const patient_id = req.account_holder.user.patient_id;
     
@@ -35,11 +38,30 @@ class Appointment {
             }
     
             // Create the appointment
-            const new_appointment_data = {
-                ...req.body,
-                time: req.body.time
+
+            // need to create a meetingid and add to body
+
+            // generating token 
+            const options = { expiresIn: "23h", algorithm: "HS256" };
+        
+            const payload = {
+                apikey: videosdk_api_key,
+                permissions: ["allow_join", "allow_mod"],
             };
-    
+        
+            const token = jwt.sign(payload, videosdk_secret_key, options);
+
+            // create meeting
+            const response = await axios.post(`${videosdk_endpoint}/v2/rooms`, {},
+                {
+                    headers: {
+                        Authorization: token,
+                    }
+                }
+            )
+
+            const meeting_id = response.data.roomId
+            req.body.meeting_id = meeting_id
             const new_appointment = await prisma.appointment.create({
                 data: req.body,
                 include: {
@@ -52,41 +74,56 @@ class Appointment {
                 }
             });
 
-            if (new_appointment && new_appointment.physician){
+            if (new_appointment){
                 sendMailBookingAppointment(new_appointment.physician, new_appointment.patient, new_appointment)
                 // create notificaton
                 req.body.created_at= convertedDatetime()
                 req.body.updated_at= convertedDatetime()
                 
-                const [] = await Promise.all([prisma.notification.create({
+                const [patientNotification, physicianNotification] = await Promise.all([prisma.notification.create({
                     data: {
                         appointment_id: new_appointment.appointment_id,
                         patient_id: new_appointment.patient_id,
-                        physician_id: null, 
-                        title: "Appointment",
-                        caseNote_id: null,
-                        details: `You've created an appointment with Dr ${new_appointment.physician?.last_name} ${new_appointment.physician?.first_name} for ${readableDate(Number(new_appointment.time))}`,
+                        physician_id: new_appointment.physician_id, 
+                        case_note_id: null,
+                        notification_type: "Appointment",
+                        notification_for_patient: true,
                         created_at: convertedDatetime(),
                         updated_at: convertedDatetime(),
                     }
                 }),prisma.notification.create({
                     data: {
                         appointment_id: new_appointment.appointment_id,
-                        patient_id: null,
+                        patient_id: new_appointment.patient_id,
                         physician_id: new_appointment.physician_id, 
-                        title: "Appointment",
-                        caseNote_id: null,
-                        details: `A new appointment has been created with you by ${new_appointment.patient?.last_name} ${new_appointment.patient?.first_name} for ${readableDate(Number(new_appointment.time))}.`,
+                        case_note_id: null, 
+                        notification_type: "Appointment",
+                        notification_for_physician: true,
                         created_at: convertedDatetime(),
                         updated_at: convertedDatetime(),
                     }
                 }) ])
 
+                // send a socket to both patient and physician
+                if (patientNotification){
+                    io.emit(`notification-${new_appointment.patient_id}`, {
+                        statusCode: 200,
+                        notificationData: patientNotification,
+                    })
+                }
+                    
+                if (physicianNotification){
+                    io.emit(`notification-${new_appointment.physician_id}`, {
+                        statusCode: 200,
+                        notificationData: patientNotification,
+                    })
+                }
+                                
+                req.pushNotificationData = {title: 'New Appointment Booking', body: `${new_appointment.patient?.last_name} ${new_appointment.patient?.first_name} has booked an appointment with you`, avatar: new_appointment.patient?.avatar, messge: 'Appointment Created', data: new_appointment}
+                
+                return next()
             }
-    
-    
-            console.log(new_appointment.time, readableDate(Number(new_appointment.time)))
-            return res.status(200).json({msg: 'Appointment created successful', new_appointment });
+
         } catch (err: any) {
             console.log('Error occurred during appointment creation error:', err);
             return res.status(500).json({ error: `Error occurred during appointment creation: ${err.message}` });
@@ -115,45 +152,69 @@ class Appointment {
                 where: {appointment_id},
                 data: {status},
                 include: {patient: {
-                    select: {last_name: true, email: true, first_name: true}
+                    select: {last_name: true, email: true, first_name: true, avatar: true}
                 }, physician: {
-                    select: {last_name: true, first_name: true, email: true }
+                    select: {last_name: true, first_name: true, email: true, avatar: true }
                 }}
             })
 
             if (updateAppointment && updateAppointment.patient && status === 'accepted'){
                 // send mail to the patient
-                const [] = await Promise.all([prisma.notification.create({
+                const [patientNotification, physicianNotification] = await Promise.all([prisma.notification.create({
                     data: {
+                        notification_type: "Appointment",
+                        notification_for_patient: true,
                         appointment_id: updateAppointment.appointment_id,
                         patient_id: updateAppointment.patient_id,
-                        physician_id: null, 
-                        title: "Appointment",
-                        caseNote_id: null,
-                        details: `Your appointment with Dr ${updateAppointment.physician?.last_name} ${updateAppointment.physician?.first_name} scheduled for ${readableDate(Number(updateAppointment.time))} has been accepted`,
+                        physician_id: updateAppointment.physician_id, 
+                        case_note_id: null,
                         created_at: convertedDatetime(),
                         updated_at: convertedDatetime(),
                     }
                     }),prisma.notification.create({
                     data: {
+                        notification_type: "Appointment",
+                        notification_for_physician: true,
                         appointment_id: updateAppointment.appointment_id,
-                        patient_id: null,
+                        patient_id: updateAppointment.patient_id,
                         physician_id: updateAppointment.physician_id, 
-                        title: "Appointment",
-                        caseNote_id: null,
-                        details: `You've accepted the appointment created by ${updateAppointment.patient?.last_name} ${updateAppointment.patient?.first_name} scheduled for ${readableDate(Number(updateAppointment.time))}.`,
+                        case_note_id: null,
                         created_at: convertedDatetime(),
                         updated_at: convertedDatetime(),
                     }
                 }) ])
+
+                if (patientNotification){
+                    io.emit(`notification-${updateAppointment.patient_id}`, {
+                        statusCode: 200,
+                        notificationData: patientNotification,
+                    })
+                }
+                
+                if (physicianNotification){
+                    io.emit(`notification-${updateAppointment.physician_id}`, {
+                        statusCode: 200,
+                        notificationData: physicianNotification,
+                    })
+                }
+
+
+                req.pushNotificationData = {title: 'Appointment Update', body: `Dr ${updateAppointment.physician?.last_name} ${updateAppointment.physician?.first_name} has accepted your appointment.`, avatar: updateAppointment.physician?.avatar, messge: 'Appointment', data: updateAppointment}
+
+
                 sendMailAcceptedAppointment( updateAppointment.patient, updateAppointment.physician, updateAppointment)
 
-                return res.status(200).json({msg: 'Appointment accepted', appointment: updateAppointment})
+                return next()
+
+                // return res.status(200).json({msg: 'Appointment accepted', appointment: updateAppointment})
             }else if (updateAppointment && updateAppointment.patient && status === 'denied'){
+
+                req.pushNotificationData = {title: 'Appointment Denied', body: `Your appointment with Dr ${updateAppointment.physician?.last_name} ${updateAppointment.physician?.first_name} has been denied`, avatar: updateAppointment.physician?.avatar, messge: 'Appointment', data: updateAppointment}
 
                 sendMailAppointmentDenied(updateAppointment.physician, updateAppointment.patient, appointment)
 
-                return res.status(200).json({msg: 'Appointment denied', appointment: updateAppointment})
+                return next()
+                // return res.status(200).json({msg: 'Appointment denied', appointment: updateAppointment})
             }
 
         } catch (err: any) {
@@ -184,49 +245,70 @@ class Appointment {
                 where: {appointment_id},
                 data: {status},
                 include: {patient: {
-                    select: {last_name: true, email: true, first_name: true}
+                    select: {last_name: true, email: true, first_name: true, gender: true, avatar: true}
                 }, physician: {
-                    select: {last_name: true, first_name: true, email: true }
+                    select: {last_name: true, first_name: true, email: true, avatar: true }
                 }}
             })
 
-            const [] = await Promise.all([prisma.notification.create({
+            const [patientNotification, physicianNotification] = await Promise.all([prisma.notification.create({
                 data: {
                     appointment_id: cancelAppointment.appointment_id,
                     patient_id: cancelAppointment.patient_id,
-                    physician_id: null, 
-                    title: "Appointment",
+                    physician_id: cancelAppointment.physician_id, 
+                    notification_type: "Appointment",
+                    notification_for_patient: true,
                     status: "completed",
-                    caseNote_id: null,
-                    details: `Your appointment with Dr ${cancelAppointment.physician?.last_name} ${cancelAppointment.physician?.first_name} scheduled for ${readableDate(Number(cancelAppointment.time))} has been cancelled`,
+                    case_note_id: null,
                     created_at: convertedDatetime(),
                     updated_at: convertedDatetime(),
                 }
-                }),prisma.notification.create({
+                }), prisma.notification.create({
                 data: {
                     appointment_id: cancelAppointment.appointment_id,
-                    patient_id: null,
+                    patient_id: cancelAppointment.patient_id,
                     physician_id: cancelAppointment.physician_id, 
-                    title: "Appointment",
+                    notification_type: "Appointment",
+                    notification_for_physician: true,
                     status: "completed",
-                    caseNote_id: null,
-                    details: `You've cancelld your appointment with ${cancelAppointment.patient?.last_name} ${cancelAppointment.patient?.first_name} scheduled for ${readableDate(Number(cancelAppointment.time))}.`,
+                    case_note_id: null,
                     created_at: convertedDatetime(),
                     updated_at: convertedDatetime(),
                 }
             }) ])
             
             if (cancelAppointment && user.patient_id){
+                // send a socket to the patient
+                if (patientNotification){
+                    io.emit(`notification-${cancelAppointment.patient_id}`, {
+                        statusCode: 200,
+                        notificationData: patientNotification,
+                    })
+                }
+
+                req.pushNotificationData = {title: 'Appointment Cancellation', body: `Your patient ${cancelAppointment.patient?.last_name} ${cancelAppointment.patient?.first_name} has cancelled ${cancelAppointment.patient?.gender == "female"? "her": "his"} with you`, avatar: cancelAppointment.patient?.avatar, messge: 'Appointment', data: cancelAppointment}
+
                 // send mail to the doctor and trigger notification
                 sendMailAppointmentCancelledByPatient(cancelAppointment.physician, cancelAppointment.patient, appointment)
 
-                return res.status(200).json({msg: 'Appointment cancelled', appointment: cancelAppointment})
+                return next()
+                // return res.status(200).json({msg: 'Appointment cancelled', appointment: cancelAppointment})
 
             }else if (cancelAppointment && user.physician_id){
+                //send socket event to physician
+                if (physicianNotification){
+                    io.emit(`notification-${cancelAppointment.patient_id}`, {
+                        statusCode: 200,
+                        notificationData: physicianNotification,
+                    })
+                }
+
+                req.pushNotificationData = {title: 'Appointment Cancellation', body: `Your appointment with Dr ${cancelAppointment.physician?.last_name} ${cancelAppointment.physician?.first_name} has been cancelled`, avatar: cancelAppointment.physician?.avatar, messge: 'Appointment', data: cancelAppointment}
                 // send mail to the patient and trigger notification for the patient
                 sendMailAppointmentCancelled(cancelAppointment.physician, cancelAppointment.patient, appointment)
     
-                return res.status(200).json({msg: 'Appointment cancelled', appointment: cancelAppointment})
+                // return res.status(200).json({msg: 'Appointment cancelled', appointment: cancelAppointment})
+                return next()
 
             }
 
@@ -351,7 +433,6 @@ class Appointment {
             ]);
 
             const number_of_pages = (number_of_appointments <= 15) ? 1 : Math.ceil(number_of_appointments/15)
-
             return res.status(200).json({message: "Appointments", data: {total_number_of_appointments: number_of_appointments, total_number_of_pages: number_of_pages, appointments: appointments} })
     
         } catch (err: any) {

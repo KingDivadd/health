@@ -12,16 +12,13 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-const client_1 = require("@prisma/client");
+const prisma_1 = __importDefault(require("../helpers/prisma"));
+const prisma_2 = require("../helpers/prisma");
 const chatCollection_1 = __importDefault(require("../models/chatCollection"));
-const ioredis_1 = require("ioredis");
+const redisFunc_1 = __importDefault(require("../helpers/redisFunc"));
 const constants_1 = require("../helpers/constants");
 const jwt = require('jsonwebtoken');
-if (!constants_1.redis_url) {
-    throw new Error('REDIS URL not found');
-}
-const redis_client = new ioredis_1.Redis(constants_1.redis_url);
-const prisma = new client_1.PrismaClient();
+const { redisCallStore, redisAuthStore } = redisFunc_1.default;
 class Chat {
     constructor() {
         this.getChats = (req, res, next) => __awaiter(this, void 0, void 0, function* () {
@@ -97,7 +94,7 @@ class Chat {
                 if (!auth_id) {
                     return { statusCode: 401, message: 'x-id-key is missing' };
                 }
-                const value = yield redis_client.get(`${auth_id}`);
+                const value = yield prisma_2.redis_client.get(`${auth_id}`);
                 if (!value) {
                     return { statusCode: 404, message: 'Auth session id expired. Please generate OTP.' };
                 }
@@ -139,8 +136,8 @@ class Chat {
                 // only deduct from patient's account if the sender is patient
                 const patient_id = data.patient_id;
                 const physician_id = data.physician_id;
-                const [patient, physician] = yield Promise.all([prisma.account.findFirst({ where: { patient_id } }),
-                    prisma.physician.findFirst({ where: { physician_id } })]);
+                const [patient, physician] = yield Promise.all([prisma_1.default.account.findFirst({ where: { patient_id } }),
+                    prisma_1.default.physician.findFirst({ where: { physician_id } })]);
                 if (!patient) {
                     return { statusCode: 404, message: 'Patient account not found' };
                 }
@@ -152,7 +149,7 @@ class Chat {
                     if ((patient === null || patient === void 0 ? void 0 : patient.available_balance) < Number(constants_1.specialist_physician_chat_amount)) {
                         return { statusCode: 401, message: 'Available balace is low, please top up your balance' };
                     }
-                    const update_account = yield prisma.account.update({
+                    const update_account = yield prisma_1.default.account.update({
                         where: { account_id: patient.account_id },
                         data: { available_balance: patient.available_balance - Number(constants_1.specialist_physician_chat_amount) }
                     });
@@ -162,7 +159,7 @@ class Chat {
                     if ((patient === null || patient === void 0 ? void 0 : patient.available_balance) < Number(constants_1.general_physician_chat_amount)) {
                         return { statusCode: 401, message: 'Available balace is low, please top up your balance' };
                     }
-                    const update_account = yield prisma.account.update({
+                    const update_account = yield prisma_1.default.account.update({
                         where: { account_id: patient.account_id },
                         data: { available_balance: patient.available_balance - Number(constants_1.general_physician_chat_amount) }
                     });
@@ -182,8 +179,8 @@ class Chat {
                 if (userAuth.physician_id) {
                     return { statusCode: 200, message: 'Account remainded as it were' };
                 }
-                const [physician, account] = yield Promise.all([prisma.physician.findFirst({ where: { physician_id: data.physician_id } }),
-                    prisma.account.findFirst({ where: { physician_id: data.physician_id } })]);
+                const [physician, account] = yield Promise.all([prisma_1.default.physician.findFirst({ where: { physician_id: data.physician_id } }),
+                    prisma_1.default.account.findFirst({ where: { physician_id: data.physician_id } })]);
                 if (!account) {
                     return { statusCode: 404, message: 'Physician account not found.' };
                 }
@@ -194,7 +191,7 @@ class Chat {
                 else if ((physician === null || physician === void 0 ? void 0 : physician.speciality) == 'general_doctor') {
                     earned_amount = constants_1.general_physician_chat_amount * (constants_1.general_physician_chat_percentage / 100); // earned_amount = 60
                 }
-                const physician_account = yield prisma.account.update({
+                const physician_account = yield prisma_1.default.account.update({
                     where: { account_id: account === null || account === void 0 ? void 0 : account.account_id },
                     data: {
                         available_balance: {
@@ -238,6 +235,24 @@ class Chat {
             }
             catch (err) {
                 console.log('err');
+            }
+        });
+        this.changeUserAvailability = (user_id) => __awaiter(this, void 0, void 0, function* () {
+            try {
+                if (!user_id) {
+                    return { statusCode: 404, message: 'user_id is missing' };
+                }
+                const availability = { is_avialable: false };
+                const life_time = 30 * 30 * 1 / 2;
+                const availability_status = yield redisCallStore(user_id, availability, life_time);
+                console.log('availability status ', availability_status);
+                if (!availability_status) {
+                    return { statusCode: 400, message: "something went wrong." };
+                }
+                return { statusCode: 200, message: "User availability stored successfully", value: availability_status };
+            }
+            catch (error) {
+                return { statusCode: 500, message: `Error occured while checking receivers availability` };
             }
         });
     }

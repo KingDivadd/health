@@ -172,7 +172,7 @@ class PatientValidation {
     filterNotificationValidation = (req: Request, res: Response, next: NextFunction) => {
         try {
             const schema = Joi.object({                
-                status: Joi.string().trim().valid('pending', 'completed').required(), 
+                status: Joi.string().trim().valid('pending', 'completed', 'cancelled', 'accepted').required(), 
                 
             });
             const { error: validation_error } = schema.validate(req.body)

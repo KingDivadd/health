@@ -1,23 +1,16 @@
 import { NextFunction , Request, Response} from "express";
 import { CustomRequest, UserInterface } from "../helpers/interface";
-import { PrismaClient } from '@prisma/client'
+import prisma from '../helpers/prisma'
+import {redis_client} from '../helpers/prisma'
 import ChatModel from "../models/chatCollection";
-import { Redis } from 'ioredis'
+import redisFunc from "../helpers/redisFunc";
 import {general_physician_chat_amount, 
         general_physician_chat_percentage, 
         specialist_physician_chat_amount, 
         specialist_physician_chat_percentage, jwt_secret, redis_url } from "../helpers/constants";
 
 const jwt = require('jsonwebtoken')
-
-
-if (!redis_url) {
-    throw new Error('REDIS URL not found')
-}
-
-const redis_client = new Redis(redis_url)
-
-const prisma = new PrismaClient()
+const {redisCallStore, redisAuthStore} = redisFunc
 
 
 class Chat {
@@ -271,6 +264,24 @@ class Chat {
         }
     }
 
+    changeUserAvailability = async(user_id:string) =>{
+        try {
+            if (!user_id) {
+                return  {statusCode:404, message: 'user_id is missing' }
+            }
+            const availability = {is_avialable: false}
+            const life_time = 30 * 30 * 1/2
+            const availability_status = await redisCallStore(user_id,availability, life_time)
+            console.log('availability status ',availability_status)
+            if (!availability_status){
+                return {statusCode: 400, message: "something went wrong."}
+            }
+
+            return {statusCode: 200, message: "User availability stored successfully", value: availability_status}
+        } catch (error:any) {
+            return { statusCode: 500, message: `Error occured while checking receivers availability` };
+        }
+    }
     
 }
 

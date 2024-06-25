@@ -12,14 +12,37 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-const client_1 = require("@prisma/client");
 const constants_1 = require("../helpers/constants");
 const axios_1 = __importDefault(require("axios"));
 const index_1 = require("../index");
+const prisma_1 = __importDefault(require("../helpers/prisma"));
 const jwt = require('jsonwebtoken');
-const prisma = new client_1.PrismaClient();
 class VideoChat {
     constructor() {
+        this.userJoinedWebHook = (req, res, next) => {
+            const data = req.body;
+            console.log('User joined:', data);
+            // Handle user joined event
+            res.status(200).send('Webhook received');
+        };
+        this.sessionStartedWebHook = (req, res, next) => {
+            const data = req.body;
+            console.log('Session started:', data);
+            // Handle session started event
+            res.status(200).send('Webhook received');
+        };
+        this.userLeftWebHook = (req, res, next) => {
+            const data = req.body;
+            console.log('User left:', data);
+            // Handle user left event
+            res.status(200).send('Webhook received');
+        };
+        this.sessionEndedWebHook = (req, res, next) => {
+            const data = req.body;
+            console.log('Session ended:', data);
+            // Handle session ended event
+            res.status(200).send('Webhook received');
+        };
         this.generateToken = (req, res, next) => {
             const { appointment_id } = req.body;
             try {
@@ -50,7 +73,7 @@ class VideoChat {
                 if (!appointment_id || appointment_id.trim() == "") {
                     return res.status(400).json({ err: 'Please provide the appointment id' });
                 }
-                const appointment = yield prisma.appointment.findUnique({ where: { appointment_id } });
+                const appointment = yield prisma_1.default.appointment.findUnique({ where: { appointment_id } });
                 if (!appointment) {
                     return res.status(404).json({ err: 'Appointemnt not found' });
                 }
@@ -59,6 +82,7 @@ class VideoChat {
                 let physician_id = user.physician_id || '';
                 let call_receiver = patient_id ? appointment.physician_id : (physician_id ? appointment.patient_id : null);
                 let caller = patient_id ? patient_id : (physician_id ? physician_id : null);
+                let callerInfo = patient_id ? user : (physician_id ? user : null);
                 if (call_receiver == null) {
                     return res.status(400).json({ err: 'Unable to determine the call receiver.' });
                 }
@@ -74,6 +98,7 @@ class VideoChat {
                     meeting_id: meetingId,
                     caller_id: caller,
                     receiver_id: call_receiver,
+                    caller_info: callerInfo
                 });
                 return res.status(200).json(response.data);
             }

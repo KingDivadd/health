@@ -8,25 +8,23 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
         step((generator = generator.apply(thisArg, _arguments || [])).next());
     });
 };
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
 Object.defineProperty(exports, "__esModule", { value: true });
-const ioredis_1 = require("ioredis");
-const client_1 = require("@prisma/client");
+const prisma_1 = __importDefault(require("./prisma"));
+const prisma_2 = require("./prisma");
 const constants_1 = require("./constants");
 const jwt = require('jsonwebtoken');
-if (!constants_1.redis_url) {
-    throw new Error('REDIS URL not found');
-}
-const redis_client = new ioredis_1.Redis(constants_1.redis_url);
-const prisma = new client_1.PrismaClient();
 class Auth {
     constructor() {
         this.emailExist = (req, res, next) => __awaiter(this, void 0, void 0, function* () {
             const { email } = req.body;
             try {
-                const patient_exist_promise = prisma.patient.findUnique({
+                const patient_exist_promise = prisma_1.default.patient.findUnique({
                     where: { email }
                 });
-                const physician_exist_promise = prisma.physician.findUnique({
+                const physician_exist_promise = prisma_1.default.physician.findUnique({
                     where: { email }
                 });
                 const [patient_exist, physician_exist] = yield Promise.all([patient_exist_promise, physician_exist_promise]);
@@ -43,7 +41,7 @@ class Auth {
         this.isRegisteredPatient = (req, res, next) => __awaiter(this, void 0, void 0, function* () {
             const { email } = req.body;
             try {
-                const is_registered = yield prisma.patient.findUnique({
+                const is_registered = yield prisma_1.default.patient.findUnique({
                     where: { email }
                 });
                 if (!is_registered) {
@@ -63,7 +61,7 @@ class Auth {
         this.isRegisteredPhysician = (req, res, next) => __awaiter(this, void 0, void 0, function* () {
             const { email } = req.body;
             try {
-                const is_registered = yield prisma.physician.findUnique({
+                const is_registered = yield prisma_1.default.physician.findUnique({
                     where: { email }
                 });
                 if (!is_registered) {
@@ -83,7 +81,7 @@ class Auth {
         this.isPatientVerified = (req, res, next) => __awaiter(this, void 0, void 0, function* () {
             const { email } = req.body;
             try {
-                const user = yield prisma.patient.findUnique({
+                const user = yield prisma_1.default.patient.findUnique({
                     where: {
                         email
                     }
@@ -125,11 +123,16 @@ class Auth {
                 if (!auth_id) {
                     return res.status(404).json({ err: 'x-id-key is missing' });
                 }
-                const value = yield redis_client.get(`${auth_id}`);
+                const value = yield prisma_2.redis_client.get(`${auth_id}`);
                 if (!value) {
-                    return res.status(404).json({ err: `auth session id expired, please generate otp` }); // generate otp again or login
+                    return res.status(401).json({ err: `auth session id expired, please generate otp` });
                 }
                 const decode_value = yield jwt.verify(JSON.parse(value), constants_1.jwt_secret);
+                const patient_id = decode_value.user.patient_id || null;
+                const physician_id = decode_value.user.physician_id || null;
+                if (patient_id == null && physician_id == null) {
+                    return res.status(401).json({ err: 'Please enter the correct x-id-key' });
+                }
                 req.account_holder = decode_value;
                 return next();
             }
@@ -144,9 +147,9 @@ class Auth {
         this.verifyOtpId = (req, res, next) => __awaiter(this, void 0, void 0, function* () {
             const { email } = req.body;
             try {
-                const value = yield redis_client.get(`${email}`);
+                const value = yield prisma_2.redis_client.get(`${email}`);
                 if (!value) {
-                    return res.status(404).json({ err: "OTP session id has expired, generate a new OTP and re verify..." });
+                    return res.status(401).json({ err: "OTP session id has expired, generate a new OTP and re verify..." });
                 }
                 const otp_data = yield jwt.verify(JSON.parse(value), constants_1.jwt_secret);
                 req.otp_data = otp_data;
@@ -167,11 +170,19 @@ class Auth {
                 if (!auth_id) {
                     return res.status(404).json({ err: 'x-id-key is missing' });
                 }
-                const value = yield redis_client.get(`${auth_id}`);
+                const value = yield prisma_2.redis_client.get(`${auth_id}`);
                 if (!value) {
-                    return res.status(404).json({ err: `auth session id has expired, please login again to continue.` }); // generate otp again or login again
+                    return res.status(401).json({ err: `auth session id has expired, please login again to continue.` }); // generate otp again or login again
                 }
                 const decode_value = yield jwt.verify(JSON.parse(value), constants_1.jwt_secret);
+                if (!('user' in decode_value)) {
+                    return res.status(401).json({ err: 'Please enter the correct x-id-key' });
+                }
+                const patient_id = decode_value.user.patient_id || null;
+                const physician_id = decode_value.user.physician_id || null;
+                if (patient_id == null && physician_id == null) {
+                    return res.status(401).json({ err: 'Please enter the correct x-id-key' });
+                }
                 req.account_holder = decode_value;
                 return next();
             }
@@ -211,6 +222,52 @@ class Auth {
             catch (err) {
                 console.log(err);
                 return res.status(500).json({ err: 'error verifying payment for prescription.' });
+            }
+        });
+        this.checkUserAvailability = (user_id) => __awaiter(this, void 0, void 0, function* () {
+            try {
+                if (!user_id) {
+                    return { statusCode: 400, message: "user id not provided to check current availability" };
+                }
+                const value = yield prisma_2.redis_client.get(`${user_id}`);
+                console.log('value of stored user ', value);
+                if (!value) {
+                    return ({ statusCode: 200, message: "the user you are trying to call is available..." });
+                }
+                const decoded_value = yield jwt.verify(JSON.parse(value), constants_1.jwt_secret);
+                console.log('decoded_value ', decoded_value.availability.is_available);
+                if (!decoded_value.availability.is_avialable) {
+                    return { statusCode: 409, message: "The user you are trying to call is currently not available", value: decoded_value };
+                }
+                return { statusCode: 200, message: "The user you are trying to reach is available", value: decoded_value };
+            }
+            catch (err) {
+                if (err.name === 'TokenExpiredError') {
+                    return { statusCode: 410, message: 'jwt token expired, generate regenerate OTP' };
+                }
+            }
+        });
+        this.checkUserAvailab = (req, res, next) => __awaiter(this, void 0, void 0, function* () {
+            const { user_id } = req.body;
+            try {
+                if (!user_id) {
+                    return res.status(404).json({ err: 'x-id-key is missing' });
+                }
+                const value = yield prisma_2.redis_client.get(`${user_id}`);
+                if (!value) {
+                    return res.status(404).json({ err: `auth session id has expired, please login again to continue.` }); // generate otp again or login again
+                }
+                const decode_value = yield jwt.verify(JSON.parse(value), constants_1.jwt_secret);
+                res.send(decode_value);
+                // req.account_holder = decode_value
+                // return next()
+            }
+            catch (err) {
+                if (err.name === 'TokenExpiredError') {
+                    return { statusCode: 410, message: 'jwt token expired, generate regenerate OTP' };
+                }
+                console.error('Error in isVerified function : ', err);
+                // throw err;
             }
         });
     }

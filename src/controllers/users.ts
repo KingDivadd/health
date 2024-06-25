@@ -1,16 +1,14 @@
 import { Request, Response, NextFunction } from 'express'
-import { PrismaClient } from '@prisma/client'
 import redisFunc from '../helpers/redisFunc';
 import { CustomRequest } from '../helpers/interface';
 import convertedDatetime from '../helpers/currrentDateTime';
-const prisma = new PrismaClient()
-
+import prisma from '../helpers/prisma'
 const { redisValueUpdate } = redisFunc
 
 class Users {
     testConnection = async(req: Request, res: Response, next: NextFunction)=>{
         try {
-            return res.status(200).json({msg: "Server connected successfully."})
+            return res.status(200).json({msg: "Server connected successfully!**!"})
         } catch (err:any) {
             return res.status(500).json({err: 'Error testing server connection'})
         }
@@ -19,6 +17,10 @@ class Users {
     loggedInPatient = async (req: CustomRequest, res: Response, next: NextFunction) => {
         try {
             const user = req.account_holder.user
+            const patient_id = user.patient_id || null
+            const physician_id = user.physician || null
+
+            console.log('patient id => ', patient_id, 'physician id => ', physician_id)
 
             const fetched_user = await prisma.patient.findUnique({
                 where: {patient_id: user.patient_id}
@@ -60,17 +62,19 @@ class Users {
     signupUpdatePatientData = async (req: CustomRequest, res: Response, next: NextFunction) => {
         const {gender, date_of_birth, country_code, phone_number} = req.body
         try {
-            if (req.body.date_of_birth){
+            if (date_of_birth){
                 req.body.date_of_birth = convertedDatetime(date_of_birth)
             }
             req.body.updated_at = convertedDatetime(); 
             const patient_id = req.account_holder.user.patient_id;
 
+            const number = Number(phone_number)
+            req.body.phone_number = String(number)
             const user: any = await prisma.patient.update({
                 where: {
                     patient_id
                 },
-                data: {date_of_birth, country_code, phone_number, gender}
+                data: req.body
             });
             req.user_email = req.account_holder.user.email;
             if (user.phone_number && user.country_code) {
@@ -117,6 +121,8 @@ class Users {
             req.body.date_of_birth = convertedDatetime(date_of_birth)
             req.body.updated_at = convertedDatetime(); 
             const physician_id = req.account_holder.user.physician_id
+            const number = Number(phone_number)
+            req.body.phone_number = String(number)
             const user:any = await prisma.physician.update({
                 where: {
                     physician_id
@@ -197,6 +203,9 @@ class Users {
         const {page_number} = req.params
         try {
 
+            // a doctor can be registerd as 1. specialist, 2. hospital, 3. laboratory, 4. pharmacy
+            // while their speciality if is a specialist is 1. dentist, 2. Oncologist, 3. Neulogist, 4. Surgeon etc
+            
             const [number_of_physicians, physicians] = await Promise.all([
                 prisma.physician.count({
                     where: {
