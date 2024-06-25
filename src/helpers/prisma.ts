@@ -7,6 +7,6 @@ const prisma = new PrismaClient()
 export default prisma
 
 if (!redis_url) {
-    throw new Error('REDIS URL not found')
+    throw new Error('REDIS URL not found.')
 }
 export const redis_client = new Redis(redis_url)
