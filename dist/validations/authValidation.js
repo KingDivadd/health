@@ -69,6 +69,23 @@ class HelperValidation {
                 return res.status(422).json({ err: 'Error during password update validation' });
             }
         });
+        this.saveSubscriptionValid = (req, res, next) => __awaiter(this, void 0, void 0, function* () {
+            try {
+                const schema = joi_1.default.object({
+                    subscription: joi_1.default.string().trim().required()
+                });
+                const { error: validation_error } = schema.validate(req.body);
+                if (validation_error) {
+                    const error_message = validation_error.message.replace(/"/g, '');
+                    return res.status(422).json({ err: error_message });
+                }
+                return next();
+            }
+            catch (err) {
+                console.log(err);
+                return res.status(422).json({ err: 'Error save subscription validation' });
+            }
+        });
     }
 }
 exports.default = new HelperValidation;
@@ -118,7 +135,7 @@ const videoChatValidation = (data) => __awaiter(void 0, void 0, void 0, function
             status: true,
             data: value,
             message: 'validated succesfully',
-            statusCode: 200,
+            statusCode: 401,
         });
     }
     catch (error) {
@@ -135,6 +152,7 @@ exports.videoChatValidation = videoChatValidation;
 const videoValidation = (data) => __awaiter(void 0, void 0, void 0, function* () {
     try {
         const schema = joi_1.default.object({
+            appointment_id: joi_1.default.string().trim().required(),
             meeting_id: joi_1.default.string().trim().required(),
             caller_id: joi_1.default.string().trim().required(),
             receiver_id: joi_1.default.string().trim().required(),

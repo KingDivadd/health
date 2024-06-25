@@ -12,25 +12,33 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-const ioredis_1 = require("ioredis");
 const uuid_1 = require("uuid");
-const constants_1 = require("./constants");
 const generateToken_1 = __importDefault(require("./generateToken"));
-if (!constants_1.redis_url) {
-    throw new Error('REDIS URL not found');
-}
-const redis_client = new ioredis_1.Redis(constants_1.redis_url);
+const prisma_1 = require("./prisma");
+const jwt = require('jsonwebtoken');
 class RedisFunc {
     constructor() {
+        this.redisCallStore = (user_id, availability, useful_time) => __awaiter(this, void 0, void 0, function* () {
+            try {
+                const uuid = (0, uuid_1.v4)();
+                const token = (0, generateToken_1.default)({ availability });
+                yield prisma_1.redis_client.set(`${user_id}`, JSON.stringify(token), 'EX', 3600);
+                return user_id;
+            }
+            catch (err) {
+                console.error('Error in redisAuthStore:', err);
+                throw err;
+            }
+        });
         this.redisStore = ({ user, life_time }) => __awaiter(this, void 0, void 0, function* () {
             try {
                 const uuid = (0, uuid_1.v4)();
                 const token = (0, generateToken_1.default)({ user });
                 if (life_time) {
-                    yield redis_client.set(`${uuid}`, JSON.stringify(token), 'EX', life_time / 1000);
+                    yield prisma_1.redis_client.set(`${uuid}`, JSON.stringify(token), 'EX', life_time / 1000);
                 }
                 else {
-                    yield redis_client.set(`${uuid}`, JSON.stringify(token));
+                    yield prisma_1.redis_client.set(`${uuid}`, JSON.stringify(token));
                 }
                 return uuid;
             }
@@ -43,7 +51,7 @@ class RedisFunc {
             try {
                 const uuid = (0, uuid_1.v4)();
                 const token = (0, generateToken_1.default)({ user });
-                yield redis_client.set(`${uuid}`, JSON.stringify(token));
+                yield prisma_1.redis_client.set(`${uuid}`, JSON.stringify(token));
                 return uuid;
             }
             catch (err) {
@@ -55,7 +63,7 @@ class RedisFunc {
             try {
                 const uuid = (0, uuid_1.v4)();
                 const token = (0, generateToken_1.default)({ user });
-                yield redis_client.set(`${uuid}`, JSON.stringify(token), 'EX', useful_time);
+                yield prisma_1.redis_client.set(`${uuid}`, JSON.stringify(token), 'EX', useful_time);
                 return uuid;
             }
             catch (err) {
@@ -66,7 +74,7 @@ class RedisFunc {
         this.redisOtpStore = (email, sent_otp, status, useful_time) => __awaiter(this, void 0, void 0, function* () {
             try {
                 const token = (0, generateToken_1.default)({ email, sent_otp, status });
-                yield redis_client.set(`${email}`, JSON.stringify(token), 'EX', useful_time);
+                yield prisma_1.redis_client.set(`${email}`, JSON.stringify(token), 'EX', useful_time);
             }
             catch (err) {
                 console.error('Error in redisOtpStore:', err);
@@ -76,7 +84,7 @@ class RedisFunc {
         this.redisOtpUpdate = (email, status) => __awaiter(this, void 0, void 0, function* () {
             try {
                 const token = (0, generateToken_1.default)({ email, status });
-                yield redis_client.set(`${email}`, JSON.stringify(token), 'EX', 60 * 60);
+                yield prisma_1.redis_client.set(`${email}`, JSON.stringify(token), 'EX', 60 * 60);
             }
             catch (err) {
                 console.error('Error in redisOtpStore:', err);
@@ -86,7 +94,7 @@ class RedisFunc {
         this.redisOtpVerificationStatus = (status) => __awaiter(this, void 0, void 0, function* () {
             try {
                 const uuid = (0, uuid_1.v4)();
-                yield redis_client.set(`${uuid}`, status);
+                yield prisma_1.redis_client.set(`${uuid}`, status);
                 return uuid;
             }
             catch (err) {
@@ -96,7 +104,7 @@ class RedisFunc {
         });
         this.redisDataDelete = (uuid) => __awaiter(this, void 0, void 0, function* () {
             try {
-                const remove_data = yield redis_client.del(uuid);
+                const remove_data = yield prisma_1.redis_client.del(uuid);
                 return remove_data;
             }
             catch (err) {
@@ -106,13 +114,13 @@ class RedisFunc {
         });
         this.redisValueUpdate = (uuid, user, useful_time) => __awaiter(this, void 0, void 0, function* () {
             try {
-                const data_exist = yield redis_client.get(`${uuid}`);
+                const data_exist = yield prisma_1.redis_client.get(`${uuid}`);
                 if (!data_exist) {
                     this.redisAuthStore(user, useful_time);
                 }
                 else {
                     const token = (0, generateToken_1.default)({ user });
-                    const update_redis = yield redis_client.set(`${uuid}`, JSON.stringify(token), 'EX', useful_time);
+                    const update_redis = yield prisma_1.redis_client.set(`${uuid}`, JSON.stringify(token), 'EX', useful_time);
                     return uuid;
                 }
             }

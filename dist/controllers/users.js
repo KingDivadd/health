@@ -12,16 +12,15 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-const client_1 = require("@prisma/client");
 const redisFunc_1 = __importDefault(require("../helpers/redisFunc"));
 const currrentDateTime_1 = __importDefault(require("../helpers/currrentDateTime"));
-const prisma = new client_1.PrismaClient();
+const prisma_1 = __importDefault(require("../helpers/prisma"));
 const { redisValueUpdate } = redisFunc_1.default;
 class Users {
     constructor() {
         this.testConnection = (req, res, next) => __awaiter(this, void 0, void 0, function* () {
             try {
-                return res.status(200).json({ msg: "Server connected successfully." });
+                return res.status(200).json({ msg: "Server connected successfully!__!" });
             }
             catch (err) {
                 return res.status(500).json({ err: 'Error testing server connection' });
@@ -30,7 +29,10 @@ class Users {
         this.loggedInPatient = (req, res, next) => __awaiter(this, void 0, void 0, function* () {
             try {
                 const user = req.account_holder.user;
-                const fetched_user = yield prisma.patient.findUnique({
+                const patient_id = user.patient_id || null;
+                const physician_id = user.physician || null;
+                console.log('patient id => ', patient_id, 'physician id => ', physician_id);
+                const fetched_user = yield prisma_1.default.patient.findUnique({
                     where: { patient_id: user.patient_id }
                 });
                 const auth_id = req.headers['x-id-key'];
@@ -45,13 +47,13 @@ class Users {
         this.loggedInPhysician = (req, res, next) => __awaiter(this, void 0, void 0, function* () {
             try {
                 const user = req.account_holder.user;
-                const fetched_user = yield prisma.physician.findUnique({
+                const fetched_user = yield prisma_1.default.physician.findUnique({
                     where: { physician_id: user.physician_id }
                 });
                 const [completed_appointment, total_appointment, account] = yield Promise.all([
-                    prisma.appointment.findMany({ where: { status: 'completed', physician_id: fetched_user === null || fetched_user === void 0 ? void 0 : fetched_user.physician_id } }),
-                    prisma.appointment.findMany({ where: { physician_id: fetched_user === null || fetched_user === void 0 ? void 0 : fetched_user.physician_id } }),
-                    prisma.account.findFirst({ where: { physician_id: fetched_user === null || fetched_user === void 0 ? void 0 : fetched_user.physician_id } })
+                    prisma_1.default.appointment.findMany({ where: { status: 'completed', physician_id: fetched_user === null || fetched_user === void 0 ? void 0 : fetched_user.physician_id } }),
+                    prisma_1.default.appointment.findMany({ where: { physician_id: fetched_user === null || fetched_user === void 0 ? void 0 : fetched_user.physician_id } }),
+                    prisma_1.default.account.findFirst({ where: { physician_id: fetched_user === null || fetched_user === void 0 ? void 0 : fetched_user.physician_id } })
                 ]);
                 const auth_id = req.headers['x-id-key'];
                 res.setHeader('x-id-key', auth_id);
@@ -65,16 +67,18 @@ class Users {
         this.signupUpdatePatientData = (req, res, next) => __awaiter(this, void 0, void 0, function* () {
             const { gender, date_of_birth, country_code, phone_number } = req.body;
             try {
-                if (req.body.date_of_birth) {
+                if (date_of_birth) {
                     req.body.date_of_birth = (0, currrentDateTime_1.default)(date_of_birth);
                 }
                 req.body.updated_at = (0, currrentDateTime_1.default)();
                 const patient_id = req.account_holder.user.patient_id;
-                const user = yield prisma.patient.update({
+                const number = Number(phone_number);
+                req.body.phone_number = String(number);
+                const user = yield prisma_1.default.patient.update({
                     where: {
                         patient_id
                     },
-                    data: { date_of_birth, country_code, phone_number, gender }
+                    data: req.body
                 });
                 req.user_email = req.account_holder.user.email;
                 if (user.phone_number && user.country_code) {
@@ -94,7 +98,7 @@ class Users {
                 req.body.date_of_birth = (0, currrentDateTime_1.default)(date_of_birth);
                 req.body.updated_at = (0, currrentDateTime_1.default)();
                 const patient_id = req.account_holder.user.patient_id;
-                const updated_patient_data = yield prisma.patient.update({
+                const updated_patient_data = yield prisma_1.default.patient.update({
                     where: {
                         patient_id
                     },
@@ -115,7 +119,9 @@ class Users {
                 req.body.date_of_birth = (0, currrentDateTime_1.default)(date_of_birth);
                 req.body.updated_at = (0, currrentDateTime_1.default)();
                 const physician_id = req.account_holder.user.physician_id;
-                const user = yield prisma.physician.update({
+                const number = Number(phone_number);
+                req.body.phone_number = String(number);
+                const user = yield prisma_1.default.physician.update({
                     where: {
                         physician_id
                     },
@@ -139,7 +145,7 @@ class Users {
                 req.body.date_of_birth = (0, currrentDateTime_1.default)(date_of_birth);
                 req.body.updated_at = (0, currrentDateTime_1.default)();
                 const physician_id = req.account_holder.user.physician_id;
-                const updated_physician_data = yield prisma.physician.update({
+                const updated_physician_data = yield prisma_1.default.physician.update({
                     where: {
                         physician_id
                     },
@@ -158,8 +164,8 @@ class Users {
             const { page_number } = req.params;
             try {
                 const [number_of_physicians, physicians] = yield Promise.all([
-                    prisma.physician.count({}),
-                    prisma.physician.findMany({
+                    prisma_1.default.physician.count({}),
+                    prisma_1.default.physician.findMany({
                         skip: (Number(page_number) - 1) * 15,
                         take: 15,
                         orderBy: {
@@ -179,13 +185,15 @@ class Users {
             const { speciality } = req.body;
             const { page_number } = req.params;
             try {
+                // a doctor can be registerd as 1. specialist, 2. hospital, 3. laboratory, 4. pharmacy
+                // while their speciality if is a specialist is 1. dentist, 2. Oncologist, 3. Neulogist, 4. Surgeon etc
                 const [number_of_physicians, physicians] = yield Promise.all([
-                    prisma.physician.count({
+                    prisma_1.default.physician.count({
                         where: {
                             speciality: { contains: speciality, mode: "insensitive" }
                         }
                     }),
-                    prisma.physician.findMany({
+                    prisma_1.default.physician.findMany({
                         where: {
                             speciality: { contains: speciality, mode: "insensitive" }
                         },

@@ -13,19 +13,25 @@ import caseNote from '../controllers/caseNote'
 import pushNotification from '../controllers/pushNotification'
 import chatValidation from '../validations/chatValidation'
 import notification from '../controllers/notification'
-
+import registerwebhook from "../controllers/registerwebhook"
+import textArea from "../controllers/textArea"
 
 const router = express.Router()
+
+
+const {getAvailability, changeAvail, } = textArea
+
+const {verifySignature, sendWebhook} = registerwebhook
 
 const {allNotifications, deleteNotification, filterNotification} = notification
 
 const {endMeetingSessionValid, removeParticipantValid} = chatValidation
 
-const {webPushNotification} = pushNotification
+const {saveSubscription, webPushNotification} = pushNotification
 
 const { physicianSetupProfileValidation, physicianDataValidation, physicianLoginValidation, physicianSignupValidation, filterPhysicianValidation, updateAppointmentValidation, createCaseNoteValid, updateCaseNoteValid, cancelAppointmentValidation} = physicianValidation
 
-const { isRegisteredPatient, isRegisteredPhysician, emailExist, verifyAuthId, verifyOtpId, isLoggedIn,} = auth
+const { isRegisteredPatient, isRegisteredPhysician, emailExist, verifyAuthId, verifyOtpId, isLoggedIn, checkUserAvailab} = auth
 
 const { patientSignup, physicianSignup, patientLogin, physicianLogin, generateUserOTP, signupGenerateUserOTP,
 
@@ -35,17 +41,17 @@ const { patientUpdateCompletionValidation, patientOrgProfileCompletionValidation
 
 const { loggedInPatient, loggedInPhysician, editPatientData, signupUpdatePatientData, editPhysicianData, singupUpdatePhysicianData, filterPhysicians, allPhysicians, testConnection } = users
 
-const { genOtpValidation, passwordUpdateValidation, verifyOtpValidation} = authValidation
+const { genOtpValidation, passwordUpdateValidation, verifyOtpValidation, saveSubscriptionValid} = authValidation
 
 const {openChat, getChats, clearChat} = chat
 
-const {decryptDepositData, decryptWithdrawalData, encryptData, account, accountTransaction } = userAccount
+const {decryptDepositData, decryptWithdrawalData, encryptData, account, accountTransaction, filterAccountTransaction } = userAccount
 
-const {createAppointment, cancelAppointment, updateAppointment, allAppointments, filterAppointments, deleteAppointment} = appointment
+const {bookAppointment, cancelAppointment, updateAppointment, allAppointments, filterAppointments, deleteAppointment} = appointment
 
-const {generateToken, createMeeting, validateMeeting, listMeeting, listSelectedMeeting, deActivateMeeting, listMeetingSession, getSessionDetails, endMeetingSession, fetchActiveParticipant, removeParticipant, fetchParticipant } = videoChat
+const {generateToken, createMeeting, validateMeeting, listMeeting, listSelectedMeeting, deActivateMeeting, listMeetingSession, getSessionDetails, endMeetingSession, fetchActiveParticipant, removeParticipant, fetchParticipant, userJoinedWebHook, userLeftWebHook, sessionStartedWebHook, sessionEndedWebHook } = videoChat
 
-const {allCaseNote, createCaseNote, deleteCaseNote, updateCaseNote} = caseNote
+const {allCaseNote, createCaseNote, } = caseNote
 
 // Authentication
 
@@ -93,13 +99,13 @@ router.route('/filter-physician/:page_number').post(filterPhysicianValidation, i
 
 // Appointment
 
-router.route('/create-appointment').post(isLoggedIn, bookAppointmentValidation, createAppointment )
+router.route('/create-appointment').post(isLoggedIn, bookAppointmentValidation, bookAppointment, webPushNotification )
 
-router.route('/accept-appointment').patch(isLoggedIn, updateAppointmentValidation, updateAppointment)
+router.route('/accept-appointment').patch(isLoggedIn, updateAppointmentValidation, updateAppointment, webPushNotification)
 
-router.route('/reject-appointment').patch(isLoggedIn, updateAppointmentValidation, updateAppointment)
+router.route('/reject-appointment').patch(isLoggedIn, updateAppointmentValidation, updateAppointment, webPushNotification)
 
-router.route('/cancel-appointment').patch(isLoggedIn, cancelAppointmentValidation, cancelAppointment)
+router.route('/cancel-appointment').patch(isLoggedIn, cancelAppointmentValidation, cancelAppointment, webPushNotification)
 
 router.route('/get-appointment/:page_number').get(isLoggedIn, allAppointments)
 
@@ -114,6 +120,20 @@ router.route('/get-chats/:patient_id/:physician_id').get(isLoggedIn, getChats)
 router.route('/clear-chat/:appointment_id').delete(clearChat)
 
 // VideoSDK
+
+// Webhooks route
+
+
+router.route('/webhook').post(verifySignature, sendWebhook )
+
+router.route('/webhook/participant-joined').post(verifySignature, userJoinedWebHook)
+
+router.route('/webhook/participant-left').post(verifySignature, userLeftWebHook)
+
+router.route('/webhook/session-started').post(verifySignature, sessionStartedWebHook)
+
+router.route('/webhook/session-ended').post(verifySignature, sessionEndedWebHook)
+
 
 router.route('/generate-token').post(isLoggedIn, generateToken )
 
@@ -144,17 +164,21 @@ router.route('/remove-participant').post(isLoggedIn, removeParticipantValid, rem
 
 router.route('/encrypt-data').post(encryptData)
 
-router.route('/decrypt-deposit-transaction-data').post(isLoggedIn, encryptedDataValidation, decryptDepositData)
+router.route('/decrypt-deposit-transaction-data').post(encryptedDataValidation, decryptDepositData)
 
-router.route('/decrypt-withdrawal-transaction-data').post(isLoggedIn, encryptedDataValidation, decryptWithdrawalData)
+router.route('/decrypt-withdrawal-transaction-data').post(encryptedDataValidation, decryptWithdrawalData)
 
 router.route('/patient-account').get(isLoggedIn, account)
 
 router.route('/physician-account').get(isLoggedIn, account)
 
-router.route('/patient-transaction').get(isLoggedIn, accountTransaction)
+router.route('/patient-transaction/:page_number').get(isLoggedIn, accountTransaction)
 
-router.route('/physician-transaction').get(isLoggedIn, accountTransaction)
+router.route('/patient-transaction/:transaction_type/:page_number').get(isLoggedIn, filterAccountTransaction)
+
+router.route('/physician-transaction/:page_number').get(isLoggedIn, accountTransaction)
+
+router.route('/physician-transaction/:transaction_type/:page_number').get(isLoggedIn, filterAccountTransaction)
 
 // Case Notes
 
@@ -162,13 +186,13 @@ router.route('/all-case-note/:patient_id').get(isLoggedIn, allCaseNote)
 
 router.route('/add-case-note').post(isLoggedIn, createCaseNoteValid, createCaseNote)
 
-router.route('/update-case-note/:caseNote_id').patch(isLoggedIn, updateCaseNoteValid, updateCaseNote)
+// router.route('/update-case-note/:case_note_id').patch(isLoggedIn, updateCaseNoteValid, updateCaseNote)
 
-router.route('/delete-case-note/:caseNote_id').delete(isLoggedIn, deleteCaseNote)
+// router.route('/delete-case-note/:case_note_id').delete(isLoggedIn, deleteCaseNote)
 
 // Push Notification
 
-router.route('/subscribe').post(webPushNotification)
+router.route('/save-subscription').post(isLoggedIn, saveSubscriptionValid,  saveSubscription)
 
 // Notification 
 
@@ -181,5 +205,12 @@ router.route('/delete-notification/:notificationId').delete(isLoggedIn, deleteNo
 // Test route
 
 router.route('/test-connection').get(testConnection)
+
+router.route('/availability').post(getAvailability)
+
+router.route('/change-availability').post(changeAvail)
+
+router.route('/test-push-notification').get(isLoggedIn, webPushNotification)
+
 
 export default router

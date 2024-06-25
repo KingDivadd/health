@@ -19,7 +19,6 @@ const socket_io_1 = require("socket.io");
 const body_parser_1 = __importDefault(require("body-parser"));
 const web_push_1 = __importDefault(require("web-push"));
 const cors_1 = __importDefault(require("cors"));
-const ioredis_1 = __importDefault(require("ioredis"));
 require('colors');
 const dotenv_1 = __importDefault(require("dotenv")); // Use dotenv for environment variables
 const index_1 = __importDefault(require("./routes/index"));
@@ -30,7 +29,15 @@ const constants_1 = require("./helpers/constants");
 const mongodb_1 = __importDefault(require("./config/mongodb"));
 const chat_1 = __importDefault(require("./controllers/chat"));
 const authValidation_1 = require("./validations/authValidation");
-const { validateChat, verifyUserAuth, createChat, accountDeduction, accountAddition } = chat_1.default;
+const registerwebhook_1 = __importDefault(require("./controllers/registerwebhook"));
+const prisma_1 = require("./helpers/prisma");
+const redisFunc_1 = __importDefault(require("./helpers/redisFunc"));
+const auth_1 = __importDefault(require("./helpers/auth"));
+const jwt = require('jsonwebtoken');
+const { checkUserAvailability } = auth_1.default;
+const { redisCallStore } = redisFunc_1.default;
+const { registerWebhook } = registerwebhook_1.default;
+const { validateChat, verifyUserAuth, createChat, accountDeduction, accountAddition, changeUserAvailability } = chat_1.default;
 dotenv_1.default.config();
 const app = (0, express_1.default)();
 const server = http_1.default.createServer(app);
@@ -52,6 +59,56 @@ if (!constants_1.vapid_public_key || !constants_1.vapid_private_key) {
 web_push_1.default.setVapidDetails('mailto:iroegbu.dg@gmail.com', constants_1.vapid_public_key, constants_1.vapid_private_key);
 try {
     io.on("connection", (socket) => {
+        // for typing
+        socket.on('typing', (data, callback) => __awaiter(void 0, void 0, void 0, function* () {
+            try {
+                const validation = yield (0, authValidation_1.chatValidation)(data);
+                if ((validation === null || validation === void 0 ? void 0 : validation.statusCode) == 422) {
+                    console.log(validation);
+                    callback({ status: false, statusCode: 422, message: validation.message, error: validation.message });
+                    return;
+                }
+                const user_id = data.is_physician ? data.physician_id : (data.is_patient ? data.patient_id : null);
+                const userAuth = yield verifyUserAuth(data.token);
+                if (userAuth.statusCode === 401) {
+                    socket.emit(`${user_id}`, {
+                        statusCode: 401,
+                        message: userAuth.message,
+                        idempotency_key: data.idempotency_key,
+                    });
+                    return;
+                }
+                else if (userAuth.statusCode === 404) {
+                    socket.emit(`${user_id}`, {
+                        statusCode: 401,
+                        message: "Auth session id expired. Please login and get new x-id-key.",
+                        idempotency_key: data.idempotency_key
+                    });
+                    return;
+                }
+                else if (userAuth.statusCode === 500) {
+                    socket.emit(`${user_id}`, {
+                        statusCode: 500,
+                        message: "Internal Server Error",
+                        idempotency_key: data.idempotency_key
+                    });
+                    return;
+                }
+                // sender receives a callback when in the chat page
+                socket.broadcast.emit(`${data.patient_id}-${data.physician_id}`, {
+                    statusCode: 200,
+                    message: "Typing... ",
+                    userData: userAuth.data
+                });
+            }
+            catch (er) {
+                const user_id = data.is_physician ? data.physician_id : (data.is_patient ? data.patient_id : null);
+                socket.broadcast.emit(`${user_id}`, {
+                    statusCode: 500,
+                    message: "Internal Server Error in the catch block",
+                });
+            }
+        }));
         // for chat
         socket.on('send-chat-text', (data, callback) => __awaiter(void 0, void 0, void 0, function* () {
             try {
@@ -118,7 +175,7 @@ try {
                 // sender receives a callback
                 socket.emit(`${user_id}`, {
                     statusCode: 200,
-                    message: "Message sent succesfully, ",
+                    message: "Message sent succesfully. ",
                     idempotency_key: data.idempotency_key,
                     chat: saved_chat,
                 });
@@ -150,6 +207,57 @@ try {
             }
         }));
         // FOR VIDEO CALL
+        // Listening for call
+        socket.on('place-call', (data, callback) => __awaiter(void 0, void 0, void 0, function* () {
+            const validation = yield (0, authValidation_1.videoValidation)(data);
+            if ((validation === null || validation === void 0 ? void 0 : validation.statusCode) == 422) {
+                console.log(validation);
+                callback({ status: false, statusCode: 422, message: validation.message, error: validation.message });
+                return;
+            }
+            const { meeting_id, caller_id, receiver_id, appointment_id } = data;
+            // this will get the user data of the event emitter
+            const userAuth = yield verifyUserAuth(data.token);
+            if (userAuth.statusCode === 401) {
+                socket.emit(`${caller_id}`, {
+                    statusCode: 401,
+                    message: userAuth.message,
+                    idempotency_key: data.idempotency_key,
+                });
+                return;
+            }
+            else if (userAuth.statusCode === 404) {
+                socket.emit(`${caller_id}`, {
+                    statusCode: 401,
+                    message: "Auth session id expired. Please login and get new x-id-key.",
+                    idempotency_key: data.idempotency_key
+                });
+                return;
+            }
+            else if (userAuth.statusCode === 500) {
+                socket.emit(`${caller_id}`, {
+                    statusCode: 500,
+                    message: "Internal Server Error",
+                    idempotency_key: data.idempotency_key
+                });
+                return;
+            }
+            // check the availability of the receiver
+            const availability = yield checkUserAvailability(receiver_id);
+            if ((availability === null || availability === void 0 ? void 0 : availability.statusCode) === 409) {
+                callback({ statusCode: 409, message: 'User is unavailable at the moment try again later' });
+                return;
+            }
+            callback({ statusCode: 200, message: `You've placed a call`, meeting_id, caller_id, receiver_id, availability });
+            // remember to trigger push notification to the reciever
+            socket.broadcast.emit(`call-${receiver_id}`, {
+                statusCode: 200,
+                message: `You're receiving a call from ${userAuth.data.first_name} ${userAuth.data.last_name} `,
+                meeting_id, caller_id, receiver_id,
+                userData: userAuth.data,
+                availability
+            });
+        }));
         // Listening for the call-not-answered event
         socket.on('call-not-answered', (data, callback) => __awaiter(void 0, void 0, void 0, function* () {
             try {
@@ -160,12 +268,39 @@ try {
                     return;
                 }
                 const { meeting_id, caller_id, receiver_id, } = data;
-                callback({ statusCode: 200, message: `Call wasn't answered`, meeting_id, caller_id, receiver_id });
+                const userAuth = yield verifyUserAuth(data.token);
+                if (userAuth.statusCode === 401) {
+                    socket.emit(`${caller_id}`, {
+                        statusCode: 401,
+                        message: userAuth.message,
+                        idempotency_key: data.idempotency_key,
+                    });
+                    return;
+                }
+                else if (userAuth.statusCode === 404) {
+                    socket.emit(`${caller_id}`, {
+                        statusCode: 401,
+                        message: "Auth session id expired. Please login and get new x-id-key.",
+                        idempotency_key: data.idempotency_key
+                    });
+                    return;
+                }
+                else if (userAuth.statusCode === 500) {
+                    socket.emit(`${caller_id}`, {
+                        statusCode: 500,
+                        message: "Internal Server Error",
+                        idempotency_key: data.idempotency_key
+                    });
+                    return;
+                }
+                // send a notification ( you missed a call )
+                socket.emit(`${receiver_id}`, { statusCode: 200, message: `Call wasn't answered`, meeting_id, caller_id, receiver_id });
                 // Emit the response back to the caller
                 socket.broadcast.emit(`call-not-answered-${data.caller_id}`, {
                     statusCode: 200,
-                    message: `User not available at the moment, please try again later.`,
-                    meeting_id, caller_id, receiver_id
+                    message: `${userAuth.data.last_name} ${userAuth.data.first_name} isn't available at the moment, please try again later.`,
+                    meeting_id, caller_id, receiver_id,
+                    userData: userAuth.data
                 });
             }
             catch (error) {
@@ -186,14 +321,43 @@ try {
                     callback({ status: false, statusCode: 422, message: validation.message, error: validation.message });
                     return;
                 }
-                const { meeting_id, caller_id, receiver_id, } = data;
-                callback({ statusCode: 200, message: `You've answred your call `, meeting_id, caller_id, receiver_id });
+                const { meeting_id, caller_id, receiver_id } = data;
+                yield changeUserAvailability(caller_id);
+                yield changeUserAvailability(receiver_id);
+                const userAuth = yield verifyUserAuth(data.token);
+                if (userAuth.statusCode === 401) {
+                    socket.emit(`${caller_id}`, {
+                        statusCode: 401,
+                        message: userAuth.message,
+                        idempotency_key: data.idempotency_key,
+                    });
+                    return;
+                }
+                else if (userAuth.statusCode === 404) {
+                    socket.emit(`${caller_id}`, {
+                        statusCode: 401,
+                        message: "Auth session id expired. Please login and get new x-id-key.",
+                        idempotency_key: data.idempotency_key
+                    });
+                    return;
+                }
+                else if (userAuth.statusCode === 500) {
+                    socket.emit(`${caller_id}`, {
+                        statusCode: 500,
+                        message: "Internal Server Error",
+                        idempotency_key: data.idempotency_key
+                    });
+                    return;
+                }
+                socket.emit(`${receiver_id}`, { statusCode: 200, message: `You've answred your call `, meeting_id, caller_id, receiver_id });
                 // Emit the response back to the caller
                 socket.broadcast.emit(`call-answered-${data.caller_id}`, {
                     statusCode: 200,
-                    message: `User has accepted your call, you can now begin conferencing`,
-                    meeting_id, caller_id, receiver_id
+                    message: `${userAuth.data.last_name} ${userAuth.data.first_name} has accepted your call, you can now begin conferencing`,
+                    meeting_id, caller_id, receiver_id,
+                    userData: userAuth.data
                 });
+                // now make the availability of the caller and receiver false
             }
             catch (error) {
                 console.log(error);
@@ -264,19 +428,16 @@ try {
 catch (err) {
     console.log('Caught error while trying to yse socket. ', err);
 }
-if (!constants_1.redis_url) {
-    throw new Error("Redis url not found");
-}
-const redis_client = new ioredis_1.default(constants_1.redis_url); // Initialize Redis client
-redis_client.on('error', (err) => {
+prisma_1.redis_client.on('error', (err) => {
     console.log("Error encountered while connecting to redis.".red.bold, err);
 });
-redis_client.on('connect', () => {
-    console.log(`Redis connection established successfully`.cyan.bold);
+prisma_1.redis_client.on('connect', () => {
+    console.log(`Redis connection established successfully.`.cyan.bold);
 });
 // middleware
 app.use(networkAvailability_1.default);
 app.use(databaseUnavailable_1.default);
+registerWebhook();
 // routes
 app.use('/api/v1/auth', index_1.default);
 app.use('/api/v1/user', index_1.default);
@@ -288,9 +449,10 @@ app.use('/api/v1/transaction', index_1.default);
 app.use('/api/v1/case-note', index_1.default);
 app.use('/api/v1/push-notification', index_1.default);
 app.use('/api/v1/notification', index_1.default);
+app.use('/api/v1/videosdkwebhook', index_1.default); // so i will have someting lile http://localhost:6000/api/v1/videosdkwebhook/webhook
 app.use(notFound_1.default);
 const start = () => __awaiter(void 0, void 0, void 0, function* () {
-    const PORT = constants_1.port || 6000;
+    const PORT = constants_1.port || 4000;
     try {
         yield (0, mongodb_1.default)();
         server.listen(PORT, () => console.log(`OHealth server started and running on port ${PORT}`.cyan.bold));

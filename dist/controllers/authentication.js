@@ -35,7 +35,6 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-const client_1 = require("@prisma/client");
 const generateOTP_1 = __importStar(require("../helpers/generateOTP"));
 const constants_1 = require("../helpers/constants");
 const redisFunc_1 = __importDefault(require("../helpers/redisFunc"));
@@ -44,7 +43,7 @@ const sms_1 = require("../helpers/sms");
 const currrentDateTime_1 = __importDefault(require("../helpers/currrentDateTime"));
 const { Decimal } = require('decimal.js');
 const bcrypt = require('bcrypt');
-const prisma = new client_1.PrismaClient();
+const prisma_1 = __importDefault(require("../helpers/prisma"));
 const { redisAuthStore, redisOtpStore, redisValueUpdate, redisOtpUpdate, redisDataDelete } = redisFunc_1.default;
 class Authentication {
     constructor() {
@@ -52,7 +51,7 @@ class Authentication {
             const { last_name, first_name, other_names, email } = req.body;
             try {
                 const encrypted_password = yield bcrypt.hash(req.body.password, constants_1.salt_round);
-                const user = yield prisma.patient.create({
+                const user = yield prisma_1.default.patient.create({
                     data: {
                         other_names: other_names,
                         last_name: last_name,
@@ -65,7 +64,7 @@ class Authentication {
                     }
                 });
                 if (user && user.patient_id) {
-                    yield prisma.account.create({
+                    yield prisma_1.default.account.create({
                         data: {
                             available_balance: 0,
                             patient_id: user === null || user === void 0 ? void 0 : user.patient_id,
@@ -88,7 +87,7 @@ class Authentication {
             const { last_name, first_name, other_names, email } = req.body;
             try {
                 const encrypted_password = yield bcrypt.hash(req.body.password, constants_1.salt_round);
-                const user = yield prisma.physician.create({
+                const user = yield prisma_1.default.physician.create({
                     data: {
                         other_names: other_names,
                         last_name: last_name,
@@ -100,7 +99,7 @@ class Authentication {
                     }
                 });
                 if (user != null) {
-                    yield prisma.account.create({
+                    yield prisma_1.default.account.create({
                         data: {
                             available_balance: 0,
                             physician_id: user === null || user === void 0 ? void 0 : user.physician_id,
@@ -121,22 +120,29 @@ class Authentication {
         this.patientLogin = (req, res, next) => __awaiter(this, void 0, void 0, function* () {
             const { email, password } = req.body;
             try {
-                const user = yield prisma.patient.findUnique({
+                console.log(1);
+                const user = yield prisma_1.default.patient.findUnique({
                     where: { email }
                 });
+                console.log(2);
                 if (!user) {
+                    console.log(3);
                     return res.status(404).json({ err: 'Incorrect email address, check email and try again' });
                 }
+                console.log(4);
                 if (!(user === null || user === void 0 ? void 0 : user.is_verified)) {
                     return res.status(401).json({ msg: 'Your account is not verified, please verify before proceeding', is_verified: user.is_verified });
                 }
+                console.log(5);
                 const encrypted_password = user.password;
                 const match_password = yield bcrypt.compare(password, encrypted_password);
                 if (!match_password) {
                     return res.status(401).json({ err: `Incorrect password, correct password and try again.` });
                 }
                 const new_auth_id = yield redisAuthStore(user, 60 * 60 * 23);
+                console.log(6);
                 res.setHeader('x-id-key', new_auth_id);
+                console.log(7);
                 return res.status(200).json({ msg: "Login successful", user_data: user });
             }
             catch (err) {
@@ -147,27 +153,35 @@ class Authentication {
         this.physicianLogin = (req, res, next) => __awaiter(this, void 0, void 0, function* () {
             const { email, password } = req.body;
             try {
-                const user = yield prisma.physician.findUnique({
+                console.log(11);
+                const user = yield prisma_1.default.physician.findUnique({
                     where: { email }
                 });
+                console.log(22);
                 if (!user) {
+                    console.log(33);
                     return res.status(404).json({ err: 'Incorrect email address' });
                 }
+                console.log(44);
                 if (!(user === null || user === void 0 ? void 0 : user.is_verified)) {
+                    console.log(55);
                     return res.status(401).json({ msg: 'Your account is not verified, please verify before proceeding', is_verified: user.is_verified });
                 }
+                console.log(66);
                 const encrypted_password = user.password;
                 const match_password = yield bcrypt.compare(password, encrypted_password);
                 if (!match_password) {
                     return res.status(401).json({ err: `Incorrect password, correct password and try again.` });
                 }
+                console.log(77);
                 const new_auth_id = yield redisAuthStore(user, 60 * 60 * 23);
                 res.setHeader('x-id-key', new_auth_id);
+                console.log(88);
                 return res.status(200).json({ msg: "Login successful", user_data: user, });
             }
             catch (err) {
                 console.log('Error during physician login', err);
-                return res.status(500).json({ err: 'Internal server error in physician signup', error: err, });
+                return res.status(500).json({ err: 'Internal server error', error: err, });
             }
         });
         this.signupGenerateUserOTP = (req, res, next) => __awaiter(this, void 0, void 0, function* () {
@@ -212,7 +226,7 @@ class Authentication {
                 if (otp !== otp_data.sent_otp) {
                     return res.status(401).json({ err: 'Incorrect otp provided' });
                 }
-                const user_promise = prisma.patient.update({
+                const user_promise = prisma_1.default.patient.update({
                     where: {
                         email: req.otp_data.email
                     },
@@ -238,7 +252,7 @@ class Authentication {
                 if (otp !== otp_data.sent_otp) {
                     return res.status(401).json({ err: 'Incorrect otp provided', otp_id });
                 }
-                const user_promise = prisma.physician.update({
+                const user_promise = prisma_1.default.physician.update({
                     where: {
                         email: req.otp_data.email
                     },
@@ -262,7 +276,7 @@ class Authentication {
             try {
                 const auth_id = req.headers['x-id-key'];
                 const encrypted_password_promise = bcrypt.hash(new_password, 10);
-                const update_user_promise = prisma.patient.update({
+                const update_user_promise = prisma_1.default.patient.update({
                     where: {
                         patient_id: req.account_holder.user.patient_id
                     },
@@ -286,7 +300,7 @@ class Authentication {
             try {
                 const auth_id = req.headers['x-id-key'];
                 const encrypted_password_promise = bcrypt.hash(new_password, 10);
-                const update_user_promise = prisma.physician.update({
+                const update_user_promise = prisma_1.default.physician.update({
                     where: {
                         physician_id: req.account_holder.user.physician_id
                     },

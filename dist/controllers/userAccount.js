@@ -35,10 +35,10 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-const client_1 = require("@prisma/client");
 const decryption_1 = __importStar(require("../helpers/decryption"));
 const currrentDateTime_1 = __importDefault(require("../helpers/currrentDateTime"));
-const prisma = new client_1.PrismaClient();
+const index_1 = require("../index");
+const prisma_1 = __importDefault(require("../helpers/prisma"));
 class Account {
     constructor() {
         this.encryptData = (req, res, next) => __awaiter(this, void 0, void 0, function* () {
@@ -55,10 +55,8 @@ class Account {
         this.decryptDepositData = (req, res, next) => __awaiter(this, void 0, void 0, function* () {
             const { encrypted_data } = req.body;
             try {
-                console.log('transaction ecrypted data :: ', encrypted_data);
                 const decrypted_data = yield (0, decryption_1.default)(encrypted_data);
                 const parsed_decrypted_data = JSON.parse(decrypted_data);
-                console.log('transction data :: ', parsed_decrypted_data);
                 // first get user
                 let patient_id = '';
                 let physician_id = '';
@@ -68,7 +66,7 @@ class Account {
                 else if (parsed_decrypted_data === null || parsed_decrypted_data === void 0 ? void 0 : parsed_decrypted_data.physician_id) {
                     physician_id = parsed_decrypted_data === null || parsed_decrypted_data === void 0 ? void 0 : parsed_decrypted_data.physician_id;
                 }
-                const user_account = yield prisma.account.findFirst({
+                const user_account = yield prisma_1.default.account.findFirst({
                     where: {
                         patient_id: patient_id,
                         physician_id: physician_id,
@@ -79,7 +77,7 @@ class Account {
                 }
                 if (user_account) {
                     if (parsed_decrypted_data.transaction_type.toLowerCase() === 'credit') {
-                        const update_account = yield prisma.account.update({
+                        const update_account = yield prisma_1.default.account.update({
                             where: {
                                 account_id: user_account.account_id
                             },
@@ -95,7 +93,7 @@ class Account {
                     }
                 }
                 // now add to transaction table
-                const new_transaction = yield prisma.transaction.create({
+                const new_transaction = yield prisma_1.default.transaction.create({
                     data: {
                         amount: parsed_decrypted_data.amount / 100,
                         transaction_type: parsed_decrypted_data.transaction_type,
@@ -107,19 +105,26 @@ class Account {
                     }
                 });
                 // the notification sent to the patient
-                const notification = yield prisma.notification.create({
+                const notification = yield prisma_1.default.notification.create({
                     data: {
                         appointment_id: null,
                         patient_id: (new_transaction === null || new_transaction === void 0 ? void 0 : new_transaction.patient_id) || null,
                         physician_id: (new_transaction === null || new_transaction === void 0 ? void 0 : new_transaction.physician_id) || null,
-                        title: "Earnings",
+                        notification_type: "Transaction",
+                        notification_for_patient: true,
+                        transaction_id: new_transaction.transaction_id,
                         status: "completed",
-                        caseNote_id: null,
-                        details: `You have successfully deposited ${new_transaction === null || new_transaction === void 0 ? void 0 : new_transaction.amount} }.`,
+                        case_note_id: null,
                         created_at: (0, currrentDateTime_1.default)(),
                         updated_at: (0, currrentDateTime_1.default)(),
                     }
                 });
+                if (notification) {
+                    index_1.io.emit(`notification-${new_transaction.patient_id}`, {
+                        statusCode: 200,
+                        notificationData: notification,
+                    });
+                }
                 return res.status(200).json({ msg: 'Account updated successfully', });
             }
             catch (error) {
@@ -130,10 +135,8 @@ class Account {
         this.decryptWithdrawalData = (req, res, next) => __awaiter(this, void 0, void 0, function* () {
             const { encrypted_data } = req.body;
             try {
-                console.log('transaction ecrypted data :: ', encrypted_data);
                 const decrypted_data = yield (0, decryption_1.default)(encrypted_data);
                 const parsed_decrypted_data = JSON.parse(decrypted_data);
-                console.log('transction data :: ', parsed_decrypted_data);
                 // first get user
                 let patient_id = '';
                 let physician_id = '';
@@ -143,7 +146,7 @@ class Account {
                 else if (parsed_decrypted_data === null || parsed_decrypted_data === void 0 ? void 0 : parsed_decrypted_data.physician_id) {
                     physician_id = parsed_decrypted_data === null || parsed_decrypted_data === void 0 ? void 0 : parsed_decrypted_data.physician_id;
                 }
-                const user_account = yield prisma.account.findFirst({
+                const user_account = yield prisma_1.default.account.findFirst({
                     where: {
                         patient_id: patient_id,
                         physician_id: physician_id,
@@ -157,7 +160,7 @@ class Account {
                         if ((user_account.available_balance - (parsed_decrypted_data.amount / 100)) < 0) {
                             return res.status(400).json({ err: 'You cannot withdraw an amount greater than you available balance' });
                         }
-                        const update_account = yield prisma.account.update({
+                        const update_account = yield prisma_1.default.account.update({
                             where: {
                                 account_id: user_account.account_id
                             },
@@ -173,7 +176,7 @@ class Account {
                     }
                 }
                 // adding the transaction data
-                const new_transaction = yield prisma.transaction.create({
+                const new_transaction = yield prisma_1.default.transaction.create({
                     data: {
                         amount: parsed_decrypted_data.amount / 100,
                         transaction_type: parsed_decrypted_data.transaction_type,
@@ -185,19 +188,28 @@ class Account {
                     }
                 });
                 // notification sent to the patient or physician
-                const notification = yield prisma.notification.create({
+                const notification = yield prisma_1.default.notification.create({
                     data: {
                         appointment_id: null,
                         patient_id: (new_transaction === null || new_transaction === void 0 ? void 0 : new_transaction.patient_id) || null,
                         physician_id: (new_transaction === null || new_transaction === void 0 ? void 0 : new_transaction.physician_id) || null,
-                        title: "Earnings",
+                        notification_type: "Transaction",
+                        notification_for_patient: patient_id ? true : false,
+                        notification_for_physician: physician_id ? true : false,
+                        transaction_id: new_transaction.transaction_id,
                         status: "completed",
-                        caseNote_id: null,
-                        details: `You have successfully withdrawn ${new_transaction === null || new_transaction === void 0 ? void 0 : new_transaction.amount} }.`,
+                        case_note_id: null,
                         created_at: (0, currrentDateTime_1.default)(),
                         updated_at: (0, currrentDateTime_1.default)(),
                     }
                 });
+                const user_id = new_transaction.patient_id ? new_transaction.patient_id : (new_transaction.physician_id ? new_transaction.physician_id : null);
+                if (notification && user_id != null) {
+                    index_1.io.emit(`notification-${user_id}`, {
+                        statusCode: 200,
+                        notificationData: notification,
+                    });
+                }
                 return res.status(200).json({ msg: 'Account updated successfully', });
             }
             catch (error) {
@@ -208,24 +220,25 @@ class Account {
         this.account = (req, res, next) => __awaiter(this, void 0, void 0, function* () {
             const user = req.account_holder.user;
             try {
-                let user_id = '';
-                if (user.patient_id) {
-                    user_id = user.patient_id;
-                    const patient_account = yield prisma.account.findFirst({
+                const patient_id = user.patient_id || null;
+                const physician_id = user.physician_id || null;
+                // getting patient account
+                if (patient_id != null) {
+                    const patient_account = yield prisma_1.default.account.findFirst({
                         where: {
-                            patient_id: user_id
+                            patient_id
                         }
                     });
                     if (!patient_account) {
                         return res.status(404).json({ err: `User doesn't have an account yet.` });
                     }
-                    return res.status(200).json({ patient_account });
+                    return res.status(200).json({ msg: 'Patient Account', patient_account });
                 }
-                else if (user.physician_id) {
-                    user_id = user.physician_id;
-                    const physician_account = yield prisma.account.findFirst({
+                // getting physician account
+                else if (physician_id != null) {
+                    const physician_account = yield prisma_1.default.account.findFirst({
                         where: {
-                            physician_id: user_id
+                            physician_id
                         }
                     });
                     if (!physician_account) {
@@ -241,11 +254,12 @@ class Account {
         });
         this.accountTransaction = (req, res, next) => __awaiter(this, void 0, void 0, function* () {
             const user = req.account_holder.user;
+            const { page_number } = req.params;
             try {
                 let user_id = '';
                 if (user.patient_id) {
                     user_id = user.patient_id;
-                    const patient_account = yield prisma.account.findFirst({
+                    const patient_account = yield prisma_1.default.account.findFirst({
                         where: {
                             patient_id: user_id,
                         }
@@ -253,19 +267,29 @@ class Account {
                     if (!patient_account) {
                         return res.status(404).json({ err: `User doesn't have an account yet.` });
                     }
-                    const patient_transaction = yield prisma.transaction.findMany({
-                        where: {
-                            account_id: patient_account.account_id
-                        },
-                        orderBy: {
-                            created_at: 'desc'
-                        }
-                    });
-                    return res.status(200).json({ nbHit: patient_transaction.length, patient_transactions: patient_transaction });
+                    const [number_of_transactions, patient_transaction] = yield Promise.all([
+                        prisma_1.default.transaction.count({
+                            where: {
+                                account_id: patient_account.account_id,
+                            }
+                        }),
+                        prisma_1.default.transaction.findMany({
+                            where: {
+                                account_id: patient_account.account_id
+                            },
+                            skip: (Number(page_number) - 1) * 15,
+                            take: 15,
+                            orderBy: {
+                                created_at: 'desc'
+                            }
+                        })
+                    ]);
+                    const number_of_pages = (number_of_transactions <= 15) ? 1 : Math.ceil(number_of_transactions / 15);
+                    return res.status(200).json({ message: 'Transactions', data: { total_number_of_transactions: number_of_transactions, total_number_of_pages: number_of_pages, transactions: patient_transaction } });
                 }
                 else if (user.physician_id) {
                     user_id = user.physician_id;
-                    const physician_account = yield prisma.account.findFirst({
+                    const physician_account = yield prisma_1.default.account.findFirst({
                         where: {
                             physician_id: user_id
                         }
@@ -273,17 +297,104 @@ class Account {
                     if (!physician_account) {
                         return res.status(404).json({ err: `User doesn't have an account yet.` });
                     }
-                    const physician_transaction = yield prisma.transaction.findMany({
-                        where: {
-                            account_id: physician_account.account_id
-                        }
-                    });
-                    return res.status(200).json({ nbHit: physician_transaction.length, physician_transactions: physician_transaction });
+                    const [number_of_transactions, physician_transaction] = yield Promise.all([
+                        prisma_1.default.transaction.count({
+                            where: {
+                                account_id: physician_account.account_id,
+                            }
+                        }),
+                        prisma_1.default.transaction.findMany({
+                            where: {
+                                account_id: physician_account.account_id
+                            },
+                            skip: (Number(page_number) - 1) * 15,
+                            take: 15,
+                            orderBy: {
+                                created_at: 'desc'
+                            }
+                        })
+                    ]);
+                    const number_of_pages = (number_of_transactions <= 15) ? 1 : Math.ceil(number_of_transactions / 15);
+                    return res.status(200).json({ message: 'Transactions', data: { total_number_of_transactions: number_of_transactions, total_number_of_pages: number_of_pages, transactions: physician_transaction } });
                 }
             }
             catch (err) {
                 console.log('Error getting patient account ', err);
                 return res.status(500).json({ error: 'Error getting patient account ', err });
+            }
+        });
+        this.filterAccountTransaction = (req, res, next) => __awaiter(this, void 0, void 0, function* () {
+            const user = req.account_holder.user;
+            try {
+                const { transaction_type, page_number } = req.params;
+                if (!transaction_type || !['credit', 'debit'].includes(transaction_type)) {
+                    return res.status(400).json({ err: "Transaction type should be one of ['debit', 'credit']" });
+                }
+                let user_id = '';
+                if (user.patient_id) {
+                    user_id = user.patient_id;
+                    const patient_account = yield prisma_1.default.account.findFirst({
+                        where: {
+                            patient_id: user_id,
+                        }
+                    });
+                    if (!patient_account) {
+                        return res.status(404).json({ err: `User doesn't have an account yet.` });
+                    }
+                    const [number_of_transactions, patient_transaction] = yield Promise.all([
+                        prisma_1.default.transaction.count({
+                            where: {
+                                account_id: patient_account.account_id, transaction_type
+                            }
+                        }),
+                        prisma_1.default.transaction.findMany({
+                            where: {
+                                account_id: patient_account.account_id, transaction_type
+                            },
+                            skip: (Number(page_number) - 1) * 15,
+                            take: 15,
+                            orderBy: {
+                                created_at: 'desc'
+                            }
+                        })
+                    ]);
+                    const number_of_pages = (number_of_transactions <= 15) ? 1 : Math.ceil(number_of_transactions / 15);
+                    return res.status(200).json({ message: 'Transactions', data: { total_number_of_transactions: number_of_transactions, total_number_of_pages: number_of_pages, transactions: patient_transaction } });
+                }
+                else if (user.physician_id) {
+                    user_id = user.physician_id;
+                    const physician_account = yield prisma_1.default.account.findFirst({
+                        where: {
+                            physician_id: user_id
+                        }
+                    });
+                    if (!physician_account) {
+                        return res.status(404).json({ err: `User doesn't have an account yet.` });
+                    }
+                    const [number_of_transactions, physician_transaction] = yield Promise.all([
+                        prisma_1.default.transaction.count({
+                            where: {
+                                account_id: physician_account.account_id, transaction_type
+                            }
+                        }),
+                        prisma_1.default.transaction.findMany({
+                            where: {
+                                account_id: physician_account.account_id, transaction_type
+                            },
+                            skip: (Number(page_number) - 1) * 15,
+                            take: 15,
+                            orderBy: {
+                                created_at: 'desc'
+                            }
+                        })
+                    ]);
+                    const number_of_pages = (number_of_transactions <= 15) ? 1 : Math.ceil(number_of_transactions / 15);
+                    return res.status(200).json({ message: 'Transactions', data: { total_number_of_transactions: number_of_transactions, total_number_of_pages: number_of_pages, transactions: physician_transaction } });
+                }
+            }
+            catch (err) {
+                console.log('Error getting patient account ', err);
+                return res.status(500).json({ error: 'Error getting patient account. ', err });
             }
         });
     }

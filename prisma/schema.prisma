@@ -1,0 +1,221 @@
+datasource db {
+  provider = "postgresql" 
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model Patient {
+  patient_id                  String           @id @default(uuid()) @unique
+  last_name                   String           @default(value: "")
+  first_name                  String
+  other_names                 String?          @default(value: "")
+  password                    String
+  email                       String           @unique
+  is_verified                 Boolean          @default(false)         
+  gender                      String?          @default(value: "")
+  date_of_birth               Decimal?         @default(value: 0)
+  blood_group                 String?          @default(value: "")   
+  genotype                    String?          @default(value: "")   
+  avatar                      String?          @default(value: "")
+  country_code                String?          @default(value: "")
+  phone_number                String?          @default(value: "")
+
+  // For Organizations
+
+  organization_name           String?          @default(value: "")
+  organization_type           String?          @default(value: "")
+  position_held               String?          @default(value: "")
+  organization_size           Int?             @default(value: 0)
+  company_website_link        String?          @default(value: "")
+  address                     String?          @default(value: "")
+  state                       String?          @default(value: "")
+  country                     String?          @default(value: "")
+  cac_document                String?          @default(value: "")
+  registration_document       String?          @default(value: "")
+
+  referral_code               String?          @default(value: "")
+
+  appointment                 Appointment[]
+  Case_note                   Case_note[]
+  notification                Notification[] 
+  subscriptions               Subscription[]
+
+  created_at                  Decimal
+  updated_at                  Decimal
+}
+
+model Physician {
+  physician_id                String           @id @default(uuid())  @unique
+  last_name                   String
+  first_name                  String
+  other_names                 String?          @default(value: "")
+  email                       String           @unique
+  is_verified                 Boolean          @default(false)         
+  password                    String
+
+  gender                      String?          @default(value: "")
+  date_of_birth               Decimal?         @default(value: 0)
+  registered_as               String?          @default(value: "")
+  speciality                  String?          @default(value: "")
+  country_code                String?          @default(value: "")
+  phone_number                String?          @default(value: "")
+  address                     String?          @default(value: "")
+  state                       String?          @default(value: "")
+  country                     String?          @default(value: "")
+  avatar                      String?          @default(value: "")
+  medical_license             String?          @default(value: "")
+  cac_document                String?          @default(value: "")
+  professional_credentials    String?          @default(value: "")
+  verification_of_employment  String?          @default(value: "")
+
+  languages_spoken            String[]         @default(value: [""])
+  bio                         String?          @default(value: "")
+  date_of_establishment       String?          @default(value: "")
+
+  appointment                 Appointment[]
+  Case_note                   Case_note[]
+  notification                Notification[]    
+  subscriptions               Subscription[]
+
+
+  created_at                  Decimal
+  updated_at                  Decimal
+}
+
+
+model Transaction {
+  transaction_id              String          @id @default(uuid())
+
+  amount                      Int             @default(value: 0)
+  
+  Account                     Account?        @relation(fields: [account_id], references: [account_id])
+  account_id                  String?
+
+  patient_id                  String?         @default(value: "")
+
+  physician_id                String?         @default(value: "")
+
+  transaction_type            String          @default(value: "")
+
+  notification                Notification[] 
+
+  created_at                  Decimal
+  updated_at                  Decimal
+}
+
+model Account {
+  account_id                  String          @id @default(uuid())
+  available_balance           Int             @default(value:0)
+
+  patient_id                  String?         @default(value: "")  
+
+  physician_id                String?         @default(value: "")  
+
+  transaction                 Transaction[]
+
+  created_at                  Decimal
+  updated_at                  Decimal
+}
+
+model Appointment {
+  appointment_id              String          @id @default(uuid())
+
+  patient                     Patient?        @relation(fields: [patient_id], references: [patient_id])
+  patient_id                  String?         @default(value: "")       
+
+  physician                   Physician?      @relation(fields: [physician_id], references: [physician_id])
+  physician_id                String?         @default(value: "")       
+
+  mode_of_consult             String
+  appointment_type            String?         @default(value: "")
+  time                        Decimal
+  complain                    String
+  status                      String          @default(value: "pending")
+  meeting_id                  String          @default(value: "")
+
+  notification                Notification[]
+  Case_note                   Case_note[]
+
+  created_at                  Decimal
+  updated_at                  Decimal
+}
+
+model Case_note {
+  case_note_id                    String          @id @default(uuid())
+
+  presenting_complaint            String?         @default(value: "")
+  history_of_presenting_complains String?         @default(value: "")
+  past_medical_history            String?         @default(value: "")
+  past_medication                 String?         @default(value: "")
+  current_medication              String?         @default(value: "")
+  family_history                  String?         @default(value: "")
+  social_history                  String?         @default(value: "")
+  review_of_system                String?         @default(value: "")
+  examination_findings            String?         @default(value: "")
+  assessment_or_diagnosis         String?         @default(value: "")
+  plan                            String?         @default(value: "")
+  prescription                    String?         @default(value: "")
+  test                            String?         @default(value: "")
+
+  patient                         Patient         @relation(fields: [patient_id], references: [patient_id])
+  patient_id                      String               
+
+  physician                       Physician       @relation(fields: [physician_id], references: [physician_id])
+  physician_id                    String         
+
+  appointment                     Appointment?    @relation(fields: [appointment_id], references: [appointment_id])
+  appointment_id                  String?         
+
+  notification                    Notification[]    
+  
+  created_at                      Decimal
+  updated_at                      Decimal
+}
+
+model Notification {
+  notification_id                 String          @id @default(uuid())
+  status                          String          @default(value: "pending")
+
+  notification_type               String
+
+  notification_for_patient        Boolean?        @default(value: false)
+
+  notification_for_physician      Boolean?        @default(value: false)
+
+  patient                         Patient?        @relation(fields: [patient_id], references: [patient_id])
+  patient_id                      String?               
+
+  physician                       Physician?      @relation(fields: [physician_id], references: [physician_id])
+  physician_id                    String?         
+
+  appointment                     Appointment?    @relation(fields: [appointment_id], references: [appointment_id])
+  appointment_id                  String?
+
+  transaction                     Transaction?    @relation(fields: [transaction_id], references: [transaction_id])
+  transaction_id                  String?
+
+  case_note                       Case_note?       @relation(fields: [case_note_id], references: [case_note_id])
+  case_note_id                    String?
+
+  created_at                      Decimal
+  updated_at                      Decimal
+}
+
+model Subscription {
+  subscription_id                 String          @id @default(uuid())
+
+  patient                         Patient?        @relation(fields: [patient_id], references: [patient_id])
+  patient_id                      String?               
+
+  physician                       Physician?      @relation(fields: [physician_id], references: [physician_id])
+  physician_id                    String?
+
+  subscription                    String
+
+  created_at                      Decimal
+  updated_at                      Decimal
+
+}

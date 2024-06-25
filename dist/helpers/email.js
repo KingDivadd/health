@@ -99,8 +99,8 @@ function sendMailBookingAppointment(physician, patient, appointment) {
     </head>
     <body>
         <div>
-            <p>Hello Dr ${physician.last_name}</p>
-            <p> ${patient.last_name} ${patient.first_name} has booked an appointment with you scheduled for ${(0, currrentDateTime_1.readableDate)(parseInt(appointment.time))}</p>
+            <p>Hello Dr ${physician.last_name.toUpperCase()} ${physician.first_name.toUpperCase()}</p>
+            <p> ${patient.last_name.toUpperCase()} ${patient.first_name.toUpperCase()} has booked a/an ${appointment.appointment_type} appointment with you scheduled for ${(0, currrentDateTime_1.readableDate)(parseInt(appointment.time))}</p>
     
             <p>Please confirm your availability for this appointment.</p>
 
@@ -156,8 +156,8 @@ function sendMailAcceptedAppointment(physician, patient, appointment) {
     </head>
     <body>
         <div>
-            <p>Hello ${patient.last_name}</p>
-            <p> Your appointment with Dr ${physician.last_name} for the complain ${appointment.complain} scheduled for ${(0, currrentDateTime_1.readableDate)(parseInt(appointment.time))} has been accepted. </p>
+            <p>Hello ${patient.last_name.toUpperCase()} ${patient.first_name.toUpperCase()} </p>
+            <p> Your ${appointment.appointment_type} appointment with Dr ${physician.last_name.toUpperCase()} ${physician.first_name.toUpperCase()} for the complain ${appointment.complain} scheduled for ${(0, currrentDateTime_1.readableDate)(parseInt(appointment.time))} has been accepted. </p>
     
             <p>Best regards,</p>
             <p>Ohealth.</p>
@@ -209,8 +209,8 @@ function sendMailAppointmentDenied(physician, patient, appointment) {
     </head>
     <body>
         <div>
-            <p>Hello ${patient.last_name}</p>
-            <p> Your appointment with Dr ${physician.last_name} for the complain ${appointment.complain} scheduled for ${(0, currrentDateTime_1.readableDate)(parseInt(appointment.time))} has been denied. </p>
+            <p>Hello ${patient.last_name.toUpperCase()}  ${patient.first_name.toUpperCase()}</p>
+            <p> Your appointment with Dr ${physician.last_name.toUpperCase()} for the complain ${appointment.complain} scheduled for ${(0, currrentDateTime_1.readableDate)(parseInt(appointment.time))} has been denied. </p>
     
             <p>Best regards,</p>
             <p>Ohealth.</p>
@@ -261,8 +261,8 @@ function sendMailAppointmentCancelled(physician, patient, appointment) {
     </head>
     <body>
         <div>
-            <p>Hello ${patient.last_name}</p>
-            <p> Your appointment with Dr ${physician.last_name} for the complain ${appointment.complain} scheduled for ${(0, currrentDateTime_1.readableDate)(parseInt(appointment.time))} has been cancelled. </p>
+            <p>Hello ${patient.last_name.toUpperCase()} ${patient.first_name.toUpperCase()}</p>
+            <p> Your ${appointment.appointment_type} appointment with Dr ${physician.last_name.toUpperCase()}  ${patient.first_name.toUpperCase()} for the complain ${appointment.complain} scheduled for ${(0, currrentDateTime_1.readableDate)(parseInt(appointment.time))} has been cancelled. </p>
     
             <p>Best regards,</p>
             <p>Ohealth.</p>
@@ -313,8 +313,8 @@ function sendMailAppointmentCancelledByPatient(physician, patient, appointment) 
     </head>
     <body>
         <div>
-            <p>Hello Dr ${physician.last_name}</p>
-            <p> Your appointment with ${patient.last_name} ${patient.first_name} for the complain ${appointment.complain} scheduled for ${(0, currrentDateTime_1.readableDate)(parseInt(appointment.time))} has been cancelled. </p>
+            <p>Hello Dr ${physician.last_name.toUpperCase()} ${physician.first_name.toUpperCase()} </p>
+            <p> Your ${appointment.appointment_type} appointment with ${patient.last_name.toUpperCase()} ${patient.first_name.toUpperCase()} for the complain ${appointment.complain} scheduled for ${(0, currrentDateTime_1.readableDate)(parseInt(appointment.time))} has been cancelled. </p>
     
             <p>Best regards,</p>
             <p>Ohealth.</p>

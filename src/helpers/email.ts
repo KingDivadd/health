@@ -100,8 +100,8 @@ export async function sendMailBookingAppointment (physician:any, patient:any, ap
     </head>
     <body>
         <div>
-            <p>Hello Dr ${physician.last_name}</p>
-            <p> ${patient.last_name} ${patient.first_name} has booked an appointment with you scheduled for ${readableDate(parseInt(appointment.time))}</p>
+            <p>Hello Dr ${physician.last_name.toUpperCase()} ${physician.first_name.toUpperCase()}</p>
+            <p> ${patient.last_name.toUpperCase()} ${patient.first_name.toUpperCase()} has booked a/an ${appointment.appointment_type} appointment with you scheduled for ${readableDate(parseInt(appointment.time))}</p>
     
             <p>Please confirm your availability for this appointment.</p>
 
@@ -163,8 +163,8 @@ export async function sendMailAcceptedAppointment (physician:any, patient:any, a
     </head>
     <body>
         <div>
-            <p>Hello ${patient.last_name}</p>
-            <p> Your appointment with Dr ${physician.last_name} for the complain ${appointment.complain} scheduled for ${readableDate(parseInt(appointment.time))} has been accepted. </p>
+            <p>Hello ${patient.last_name.toUpperCase()} ${patient.first_name.toUpperCase()} </p>
+            <p> Your ${appointment.appointment_type} appointment with Dr ${physician.last_name.toUpperCase()} ${physician.first_name.toUpperCase()} for the complain ${appointment.complain} scheduled for ${readableDate(parseInt(appointment.time))} has been accepted. </p>
     
             <p>Best regards,</p>
             <p>Ohealth.</p>
@@ -222,8 +222,8 @@ export async function sendMailAppointmentDenied (physician:any, patient:any, app
     </head>
     <body>
         <div>
-            <p>Hello ${patient.last_name}</p>
-            <p> Your appointment with Dr ${physician.last_name} for the complain ${appointment.complain} scheduled for ${readableDate(parseInt(appointment.time))} has been denied. </p>
+            <p>Hello ${patient.last_name.toUpperCase()}  ${patient.first_name.toUpperCase()}</p>
+            <p> Your appointment with Dr ${physician.last_name.toUpperCase()} for the complain ${appointment.complain} scheduled for ${readableDate(parseInt(appointment.time))} has been denied. </p>
     
             <p>Best regards,</p>
             <p>Ohealth.</p>
@@ -280,8 +280,8 @@ export async function sendMailAppointmentCancelled (physician:any, patient:any, 
     </head>
     <body>
         <div>
-            <p>Hello ${patient.last_name}</p>
-            <p> Your appointment with Dr ${physician.last_name} for the complain ${appointment.complain} scheduled for ${readableDate(parseInt(appointment.time))} has been cancelled. </p>
+            <p>Hello ${patient.last_name.toUpperCase()} ${patient.first_name.toUpperCase()}</p>
+            <p> Your ${appointment.appointment_type} appointment with Dr ${physician.last_name.toUpperCase()}  ${patient.first_name.toUpperCase()} for the complain ${appointment.complain} scheduled for ${readableDate(parseInt(appointment.time))} has been cancelled. </p>
     
             <p>Best regards,</p>
             <p>Ohealth.</p>
@@ -306,6 +306,7 @@ export async function sendMailAppointmentCancelled (physician:any, patient:any, 
     }
     
 }
+
 export async function sendMailAppointmentCancelledByPatient (physician:any, patient:any, appointment:any) {
 
     try {
@@ -334,8 +335,8 @@ export async function sendMailAppointmentCancelledByPatient (physician:any, pati
     </head>
     <body>
         <div>
-            <p>Hello Dr ${physician.last_name}</p>
-            <p> Your appointment with ${patient.last_name} ${patient.first_name} for the complain ${appointment.complain} scheduled for ${readableDate(parseInt(appointment.time))} has been cancelled. </p>
+            <p>Hello Dr ${physician.last_name.toUpperCase()} ${physician.first_name.toUpperCase()} </p>
+            <p> Your ${appointment.appointment_type} appointment with ${patient.last_name.toUpperCase()} ${patient.first_name.toUpperCase()} for the complain ${appointment.complain} scheduled for ${readableDate(parseInt(appointment.time))} has been cancelled. </p>
     
             <p>Best regards,</p>
             <p>Ohealth.</p>

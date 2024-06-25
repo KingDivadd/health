@@ -1,15 +1,11 @@
 import { Request, Response, NextFunction } from 'express'
-import { Redis } from 'ioredis'
-import { PrismaClient } from '@prisma/client'
+import prisma from './prisma'
+import {redis_client} from './prisma'
 import { CustomRequest } from '../helpers/interface'
-import { jwt_secret, redis_url } from './constants'
+import { jwt_secret } from './constants'
 const jwt = require('jsonwebtoken')
-if (!redis_url) {
-    throw new Error('REDIS URL not found')
-}
-const redis_client = new Redis(redis_url)
 
-const prisma = new PrismaClient()
+
 
 class Auth {
     emailExist = async (req: Request, res: Response, next: NextFunction) => {
@@ -125,11 +121,18 @@ class Auth {
             }   
             const value = await redis_client.get(`${auth_id}`)
             if (!value) {
-                return res.status(404).json({ err: `auth session id expired, please generate otp`}) // generate otp again or login
+                return res.status(401).json({ err: `auth session id expired, please generate otp`})
             }
             const decode_value = await jwt.verify(JSON.parse(value), jwt_secret)
-            req.account_holder = decode_value
             
+            const patient_id = decode_value.user.patient_id || null
+            const physician_id =decode_value.user.physician_id || null
+            
+            if (patient_id == null && physician_id == null){
+                return res.status(401).json({err: 'Please enter the correct x-id-key'})
+            }
+            
+            req.account_holder = decode_value
             return next()
         } catch (err: any) {
             if (err.name === 'TokenExpiredError') {
@@ -145,7 +148,7 @@ class Auth {
         try {
             const value: any = await redis_client.get(`${email}`)
             if (!value){
-                return res.status(404).json({err: "OTP session id has expired, generate a new OTP and re verify..."})
+                return res.status(401).json({err: "OTP session id has expired, generate a new OTP and re verify..."})
             }
             const otp_data = await jwt.verify(JSON.parse(value), jwt_secret)
             req.otp_data = otp_data
@@ -169,9 +172,20 @@ class Auth {
             }
             const value = await redis_client.get(`${auth_id}`)
             if (!value) {
-                return res.status(404).json({ err: `auth session id has expired, please login again to continue.` }) // generate otp again or login again
+                return res.status(401).json({ err: `auth session id has expired, please login again to continue.` }) // generate otp again or login again
             }
             const decode_value = await jwt.verify(JSON.parse(value), jwt_secret)
+            if (!('user' in decode_value)){
+                return res.status(401).json({err: 'Please enter the correct x-id-key'})
+            }
+            
+            const patient_id = decode_value.user.patient_id || null
+            const physician_id =decode_value.user.physician_id || null
+            
+            if (patient_id == null && physician_id == null){
+                return res.status(401).json({err: 'Please enter the correct x-id-key'})
+            }
+
             req.account_holder = decode_value
             return next()
         } catch (err: any) {
@@ -216,6 +230,53 @@ class Auth {
         }
     }
     
+
+    checkUserAvailability = async (user_id:any) => {
+        try {
+            if (!user_id) {
+                return {statusCode: 400, message: "user id not provided to check current availability"}
+            }
+            const value = await redis_client.get(`${user_id}`)
+            console.log('value of stored user ', value)
+            if (!value) {
+                return ({statusCode: 200, message: "the user you are trying to call is available..."})
+            }
+            const decoded_value = await jwt.verify(JSON.parse(value), jwt_secret)
+            console.log('decoded_value ',decoded_value.availability.is_available)
+            if (!decoded_value.availability.is_avialable){
+                return {statusCode: 409, message: "The user you are trying to call is currently not available", value: decoded_value}
+            }
+            return {statusCode: 200, message: "The user you are trying to reach is available", value: decoded_value}
+        } catch (err: any) {
+            if (err.name === 'TokenExpiredError') {
+                return {statusCode: 410, message: 'jwt token expired, generate regenerate OTP'}
+            }
+        }
+    }
+
+    checkUserAvailab = async(req: Request, res: Response, next: NextFunction) => {
+        const {user_id} = req.body
+        try {
+            
+            if (!user_id) {
+                return res.status(404).json({ err: 'x-id-key is missing' })
+            }
+            const value = await redis_client.get(`${user_id}`)
+            if (!value) {
+                return res.status(404).json({ err: `auth session id has expired, please login again to continue.` }) // generate otp again or login again
+            }
+            const decode_value = await jwt.verify(JSON.parse(value), jwt_secret)
+            res.send(decode_value)
+            // req.account_holder = decode_value
+            // return next()
+        } catch (err: any) {
+            if (err.name === 'TokenExpiredError') {
+                return {statusCode: 410, message: 'jwt token expired, generate regenerate OTP'}
+            }
+            console.error('Error in isVerified function : ', err)
+            // throw err;
+        }
+    }
 
 }
 

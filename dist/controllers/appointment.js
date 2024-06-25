@@ -1,27 +1,4 @@
 "use strict";
-var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    var desc = Object.getOwnPropertyDescriptor(m, k);
-    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
-      desc = { enumerable: true, get: function() { return m[k]; } };
-    }
-    Object.defineProperty(o, k2, desc);
-}) : (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    o[k2] = m[k];
-}));
-var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
-    Object.defineProperty(o, "default", { enumerable: true, value: v });
-}) : function(o, v) {
-    o["default"] = v;
-});
-var __importStar = (this && this.__importStar) || function (mod) {
-    if (mod && mod.__esModule) return mod;
-    var result = {};
-    if (mod != null) for (var k in mod) if (k !== "default" && Object.prototype.hasOwnProperty.call(mod, k)) __createBinding(result, mod, k);
-    __setModuleDefault(result, mod);
-    return result;
-};
 var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
     function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
     return new (P || (P = Promise))(function (resolve, reject) {
@@ -31,22 +8,28 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
         step((generator = generator.apply(thisArg, _arguments || [])).next());
     });
 };
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
 Object.defineProperty(exports, "__esModule", { value: true });
-const client_1 = require("@prisma/client");
 const email_1 = require("../helpers/email");
-const currrentDateTime_1 = __importStar(require("../helpers/currrentDateTime"));
-const prisma = new client_1.PrismaClient();
+const currrentDateTime_1 = __importDefault(require("../helpers/currrentDateTime"));
+const index_1 = require("../index");
+const prisma_1 = __importDefault(require("../helpers/prisma"));
+const constants_1 = require("../helpers/constants");
+const axios_1 = __importDefault(require("axios"));
+const jwt = require('jsonwebtoken');
 class Appointment {
     constructor() {
-        this.createAppointment = (req, res, next) => __awaiter(this, void 0, void 0, function* () {
-            var _a, _b, _c, _d;
+        this.bookAppointment = (req, res, next) => __awaiter(this, void 0, void 0, function* () {
+            var _a, _b, _c;
             try {
                 const patient_id = req.account_holder.user.patient_id;
                 req.body.patient_id = patient_id;
                 req.body.created_at = Date.now();
                 req.body.updated_at = Date.now();
                 // Check if the appointment with the same patient_id already exists
-                const existingAppointment = yield prisma.appointment.findFirst({
+                const existingAppointment = yield prisma_1.default.appointment.findFirst({
                     where: {
                         patient_id: patient_id,
                     },
@@ -63,8 +46,23 @@ class Appointment {
                     }
                 }
                 // Create the appointment
-                const new_appointment_data = Object.assign(Object.assign({}, req.body), { time: req.body.time });
-                const new_appointment = yield prisma.appointment.create({
+                // need to create a meetingid and add to body
+                // generating token 
+                const options = { expiresIn: "23h", algorithm: "HS256" };
+                const payload = {
+                    apikey: constants_1.videosdk_api_key,
+                    permissions: ["allow_join", "allow_mod"],
+                };
+                const token = jwt.sign(payload, constants_1.videosdk_secret_key, options);
+                // create meeting
+                const response = yield axios_1.default.post(`${constants_1.videosdk_endpoint}/v2/rooms`, {}, {
+                    headers: {
+                        Authorization: token,
+                    }
+                });
+                const meeting_id = response.data.roomId;
+                req.body.meeting_id = meeting_id;
+                const new_appointment = yield prisma_1.default.appointment.create({
                     data: req.body,
                     include: {
                         patient: {
@@ -75,37 +73,50 @@ class Appointment {
                         }
                     }
                 });
-                if (new_appointment && new_appointment.physician) {
+                if (new_appointment) {
                     (0, email_1.sendMailBookingAppointment)(new_appointment.physician, new_appointment.patient, new_appointment);
                     // create notificaton
                     req.body.created_at = (0, currrentDateTime_1.default)();
                     req.body.updated_at = (0, currrentDateTime_1.default)();
-                    const [] = yield Promise.all([prisma.notification.create({
+                    const [patientNotification, physicianNotification] = yield Promise.all([prisma_1.default.notification.create({
                             data: {
                                 appointment_id: new_appointment.appointment_id,
                                 patient_id: new_appointment.patient_id,
-                                physician_id: null,
-                                title: "Appointment",
-                                caseNote_id: null,
-                                details: `You've created an appointment with Dr ${(_a = new_appointment.physician) === null || _a === void 0 ? void 0 : _a.last_name} ${(_b = new_appointment.physician) === null || _b === void 0 ? void 0 : _b.first_name} for ${(0, currrentDateTime_1.readableDate)(Number(new_appointment.time))}`,
+                                physician_id: new_appointment.physician_id,
+                                case_note_id: null,
+                                notification_type: "Appointment",
+                                notification_for_patient: true,
                                 created_at: (0, currrentDateTime_1.default)(),
                                 updated_at: (0, currrentDateTime_1.default)(),
                             }
-                        }), prisma.notification.create({
+                        }), prisma_1.default.notification.create({
                             data: {
                                 appointment_id: new_appointment.appointment_id,
-                                patient_id: null,
+                                patient_id: new_appointment.patient_id,
                                 physician_id: new_appointment.physician_id,
-                                title: "Appointment",
-                                caseNote_id: null,
-                                details: `A new appointment has been created with you by ${(_c = new_appointment.patient) === null || _c === void 0 ? void 0 : _c.last_name} ${(_d = new_appointment.patient) === null || _d === void 0 ? void 0 : _d.first_name} for ${(0, currrentDateTime_1.readableDate)(Number(new_appointment.time))}.`,
+                                case_note_id: null,
+                                notification_type: "Appointment",
+                                notification_for_physician: true,
                                 created_at: (0, currrentDateTime_1.default)(),
                                 updated_at: (0, currrentDateTime_1.default)(),
                             }
                         })]);
+                    // send a socket to both patient and physician
+                    if (patientNotification) {
+                        index_1.io.emit(`notification-${new_appointment.patient_id}`, {
+                            statusCode: 200,
+                            notificationData: patientNotification,
+                        });
+                    }
+                    if (physicianNotification) {
+                        index_1.io.emit(`notification-${new_appointment.physician_id}`, {
+                            statusCode: 200,
+                            notificationData: patientNotification,
+                        });
+                    }
+                    req.pushNotificationData = { title: 'New Appointment Booking', body: `${(_a = new_appointment.patient) === null || _a === void 0 ? void 0 : _a.last_name} ${(_b = new_appointment.patient) === null || _b === void 0 ? void 0 : _b.first_name} has booked an appointment with you`, avatar: (_c = new_appointment.patient) === null || _c === void 0 ? void 0 : _c.avatar, messge: 'Appointment Created', data: new_appointment };
+                    return next();
                 }
-                console.log(new_appointment.time, (0, currrentDateTime_1.readableDate)(Number(new_appointment.time)));
-                return res.status(200).json({ msg: 'Appointment created successful', new_appointment });
             }
             catch (err) {
                 console.log('Error occurred during appointment creation error:', err);
@@ -113,11 +124,11 @@ class Appointment {
             }
         });
         this.updateAppointment = (req, res, next) => __awaiter(this, void 0, void 0, function* () {
-            var _e, _f, _g, _h;
+            var _d, _e, _f, _g, _h, _j;
             const { appointment_id, status } = req.body;
             try {
                 const user = req.account_holder.user;
-                const appointment = yield prisma.appointment.findUnique({ where: { appointment_id } });
+                const appointment = yield prisma_1.default.appointment.findUnique({ where: { appointment_id } });
                 if (appointment == null || !appointment) {
                     return res.status(404).json({ err: 'Appointment not found' });
                 }
@@ -127,46 +138,64 @@ class Appointment {
                 if (appointment.status === 'cancelled') {
                     return res.status(409).json({ err: 'Appointment already cancelled.' });
                 }
-                const updateAppointment = yield prisma.appointment.update({
+                const updateAppointment = yield prisma_1.default.appointment.update({
                     where: { appointment_id },
                     data: { status },
                     include: { patient: {
-                            select: { last_name: true, email: true, first_name: true }
+                            select: { last_name: true, email: true, first_name: true, avatar: true }
                         }, physician: {
-                            select: { last_name: true, first_name: true, email: true }
+                            select: { last_name: true, first_name: true, email: true, avatar: true }
                         } }
                 });
                 if (updateAppointment && updateAppointment.patient && status === 'accepted') {
                     // send mail to the patient
-                    const [] = yield Promise.all([prisma.notification.create({
+                    const [patientNotification, physicianNotification] = yield Promise.all([prisma_1.default.notification.create({
                             data: {
+                                notification_type: "Appointment",
+                                notification_for_patient: true,
                                 appointment_id: updateAppointment.appointment_id,
                                 patient_id: updateAppointment.patient_id,
-                                physician_id: null,
-                                title: "Appointment",
-                                caseNote_id: null,
-                                details: `Your appointment with Dr ${(_e = updateAppointment.physician) === null || _e === void 0 ? void 0 : _e.last_name} ${(_f = updateAppointment.physician) === null || _f === void 0 ? void 0 : _f.first_name} scheduled for ${(0, currrentDateTime_1.readableDate)(Number(updateAppointment.time))} has been accepted`,
+                                physician_id: updateAppointment.patient_id,
+                                case_note_id: null,
                                 created_at: (0, currrentDateTime_1.default)(),
                                 updated_at: (0, currrentDateTime_1.default)(),
                             }
-                        }), prisma.notification.create({
+                        }), prisma_1.default.notification.create({
                             data: {
+                                notification_type: "Appointment",
+                                notification_for_physician: true,
                                 appointment_id: updateAppointment.appointment_id,
-                                patient_id: null,
+                                patient_id: updateAppointment.patient_id,
                                 physician_id: updateAppointment.physician_id,
-                                title: "Appointment",
-                                caseNote_id: null,
-                                details: `You've accepted the appointment created by ${(_g = updateAppointment.patient) === null || _g === void 0 ? void 0 : _g.last_name} ${(_h = updateAppointment.patient) === null || _h === void 0 ? void 0 : _h.first_name} scheduled for ${(0, currrentDateTime_1.readableDate)(Number(updateAppointment.time))}.`,
+                                case_note_id: null,
                                 created_at: (0, currrentDateTime_1.default)(),
                                 updated_at: (0, currrentDateTime_1.default)(),
                             }
                         })]);
+                    if (patientNotification) {
+                        console.log('patient notification ', patientNotification);
+                        index_1.io.emit(`notification-${updateAppointment.patient_id}`, {
+                            statusCode: 200,
+                            notificationData: patientNotification,
+                        });
+                    }
+                    if (physicianNotification) {
+                        console.log('physician notification ', physicianNotification);
+                        index_1.io.emit(`notification-${updateAppointment.physician_id}`, {
+                            statusCode: 200,
+                            notificationData: physicianNotification,
+                        });
+                    }
+                    req.pushNotificationData = { title: 'Appointment Update', body: `Dr ${(_d = updateAppointment.physician) === null || _d === void 0 ? void 0 : _d.last_name} ${(_e = updateAppointment.physician) === null || _e === void 0 ? void 0 : _e.first_name} has accepted your appointment`, avatar: (_f = updateAppointment.physician) === null || _f === void 0 ? void 0 : _f.avatar, messge: 'Appointment', data: updateAppointment };
                     (0, email_1.sendMailAcceptedAppointment)(updateAppointment.patient, updateAppointment.physician, updateAppointment);
-                    return res.status(200).json({ msg: 'Appointment accepted', appointment: updateAppointment });
+                    return next();
+                    // return res.status(200).json({msg: 'Appointment accepted', appointment: updateAppointment})
                 }
                 else if (updateAppointment && updateAppointment.patient && status === 'denied') {
+                    req.pushNotificationData = { title: 'Appointment Denied', body: `Your appointment with Dr ${(_g = updateAppointment.physician) === null || _g === void 0 ? void 0 : _g.last_name} ${(_h = updateAppointment.physician) === null || _h === void 0 ? void 0 : _h.first_name} has been denied`, avatar: (_j = updateAppointment.physician) === null || _j === void 0 ? void 0 : _j.avatar, messge: 'Appointment', data: updateAppointment };
                     (0, email_1.sendMailAppointmentDenied)(updateAppointment.physician, updateAppointment.patient, appointment);
-                    return res.status(200).json({ msg: 'Appointment denied', appointment: updateAppointment });
+                    return next();
+                    // return res.status(200).json({msg: 'Appointment denied', appointment: updateAppointment})
                 }
             }
             catch (err) {
@@ -175,11 +204,11 @@ class Appointment {
             }
         });
         this.cancelAppointment = (req, res, next) => __awaiter(this, void 0, void 0, function* () {
-            var _j, _k, _l, _m;
+            var _k, _l, _m, _o, _p, _q, _r;
             const { appointment_id, status } = req.body;
             try {
                 const user = req.account_holder.user;
-                const appointment = yield prisma.appointment.findUnique({ where: { appointment_id } });
+                const appointment = yield prisma_1.default.appointment.findUnique({ where: { appointment_id } });
                 if (appointment == null || !appointment) {
                     return res.status(404).json({ err: 'Appointment not found' });
                 }
@@ -189,49 +218,67 @@ class Appointment {
                 if (appointment.status === 'cancelled') {
                     return res.status(409).json({ err: 'Appointment already cancelled.' });
                 }
-                const cancelAppointment = yield prisma.appointment.update({
+                const cancelAppointment = yield prisma_1.default.appointment.update({
                     where: { appointment_id },
                     data: { status },
                     include: { patient: {
-                            select: { last_name: true, email: true, first_name: true }
+                            select: { last_name: true, email: true, first_name: true, gender: true, avatar: true }
                         }, physician: {
-                            select: { last_name: true, first_name: true, email: true }
+                            select: { last_name: true, first_name: true, email: true, avatar: true }
                         } }
                 });
-                const [] = yield Promise.all([prisma.notification.create({
+                const [patientNotification, physicianNotification] = yield Promise.all([prisma_1.default.notification.create({
                         data: {
                             appointment_id: cancelAppointment.appointment_id,
                             patient_id: cancelAppointment.patient_id,
-                            physician_id: null,
-                            title: "Appointment",
+                            physician_id: cancelAppointment.physician_id,
+                            notification_type: "Appointment",
+                            notification_for_patient: true,
                             status: "completed",
-                            caseNote_id: null,
-                            details: `Your appointment with Dr ${(_j = cancelAppointment.physician) === null || _j === void 0 ? void 0 : _j.last_name} ${(_k = cancelAppointment.physician) === null || _k === void 0 ? void 0 : _k.first_name} scheduled for ${(0, currrentDateTime_1.readableDate)(Number(cancelAppointment.time))} has been cancelled`,
+                            case_note_id: null,
                             created_at: (0, currrentDateTime_1.default)(),
                             updated_at: (0, currrentDateTime_1.default)(),
                         }
-                    }), prisma.notification.create({
+                    }), prisma_1.default.notification.create({
                         data: {
                             appointment_id: cancelAppointment.appointment_id,
-                            patient_id: null,
+                            patient_id: cancelAppointment.patient_id,
                             physician_id: cancelAppointment.physician_id,
-                            title: "Appointment",
+                            notification_type: "Appointment",
+                            notification_for_physician: true,
                             status: "completed",
-                            caseNote_id: null,
-                            details: `You've cancelld your appointment with ${(_l = cancelAppointment.patient) === null || _l === void 0 ? void 0 : _l.last_name} ${(_m = cancelAppointment.patient) === null || _m === void 0 ? void 0 : _m.first_name} scheduled for ${(0, currrentDateTime_1.readableDate)(Number(cancelAppointment.time))}.`,
+                            case_note_id: null,
                             created_at: (0, currrentDateTime_1.default)(),
                             updated_at: (0, currrentDateTime_1.default)(),
                         }
                     })]);
                 if (cancelAppointment && user.patient_id) {
+                    // send a socket to the patient
+                    if (patientNotification) {
+                        index_1.io.emit(`notification-${cancelAppointment.patient_id}`, {
+                            statusCode: 200,
+                            notificationData: patientNotification,
+                        });
+                    }
+                    req.pushNotificationData = { title: 'Appointment Cancellation', body: `Your patient ${(_k = cancelAppointment.patient) === null || _k === void 0 ? void 0 : _k.last_name} ${(_l = cancelAppointment.patient) === null || _l === void 0 ? void 0 : _l.first_name} has cancelled ${((_m = cancelAppointment.patient) === null || _m === void 0 ? void 0 : _m.gender) == "female" ? "her" : "his"} with you`, avatar: (_o = cancelAppointment.patient) === null || _o === void 0 ? void 0 : _o.avatar, messge: 'Appointment', data: cancelAppointment };
                     // send mail to the doctor and trigger notification
                     (0, email_1.sendMailAppointmentCancelledByPatient)(cancelAppointment.physician, cancelAppointment.patient, appointment);
-                    return res.status(200).json({ msg: 'Appointment cancelled', appointment: cancelAppointment });
+                    return next();
+                    // return res.status(200).json({msg: 'Appointment cancelled', appointment: cancelAppointment})
                 }
                 else if (cancelAppointment && user.physician_id) {
+                    //send socket event to physician
+                    if (physicianNotification) {
+                        index_1.io.emit(`notification-${cancelAppointment.patient_id}`, {
+                            statusCode: 200,
+                            notificationData: physicianNotification,
+                        });
+                    }
+                    req.pushNotificationData = { title: 'Appointment Cancellation', body: `Your appointment with Dr ${(_p = cancelAppointment.physician) === null || _p === void 0 ? void 0 : _p.last_name} ${(_q = cancelAppointment.physician) === null || _q === void 0 ? void 0 : _q.first_name} has been cancelled`, avatar: (_r = cancelAppointment.physician) === null || _r === void 0 ? void 0 : _r.avatar, messge: 'Appointment', data: cancelAppointment };
                     // send mail to the patient and trigger notification for the patient
                     (0, email_1.sendMailAppointmentCancelled)(cancelAppointment.physician, cancelAppointment.patient, appointment);
-                    return res.status(200).json({ msg: 'Appointment cancelled', appointment: cancelAppointment });
+                    // return res.status(200).json({msg: 'Appointment cancelled', appointment: cancelAppointment})
+                    return next();
                 }
             }
             catch (err) {
@@ -251,14 +298,14 @@ class Appointment {
                     return res.status(400).json({ err: 'Invalid field for status' });
                 }
                 const [number_of_appointments, appointments] = yield Promise.all([
-                    prisma.appointment.count({
+                    prisma_1.default.appointment.count({
                         where: {
                             patient_id: user.patient_id,
                             physician_id: user.physician_id,
                             status: { contains: status, mode: "insensitive" }
                         }
                     }),
-                    prisma.appointment.findMany({
+                    prisma_1.default.appointment.findMany({
                         skip: (Number(page_number) - 1) * 15,
                         take: 15,
                         where: {
@@ -296,13 +343,13 @@ class Appointment {
                 const user = req.account_holder.user;
                 const { page_number } = req.params;
                 const [number_of_appointments, appointments] = yield Promise.all([
-                    prisma.appointment.count({
+                    prisma_1.default.appointment.count({
                         where: {
                             patient_id: user.patient_id,
                             physician_id: user.physician_id
                         }
                     }),
-                    prisma.appointment.findMany({
+                    prisma_1.default.appointment.findMany({
                         skip: (Number(page_number) - 1) * 15,
                         take: 15,
                         where: {
@@ -338,7 +385,7 @@ class Appointment {
             try {
                 const { appointment_id } = req.params;
                 const user = req.account_holder.user;
-                const appointment = yield prisma.appointment.findUnique({
+                const appointment = yield prisma_1.default.appointment.findUnique({
                     where: { appointment_id }
                 });
                 if (!appointment) {
@@ -347,7 +394,7 @@ class Appointment {
                 if (appointment.patient_id !== user.patient_id) {
                     return res.status(401).json({ err: 'You are not authorized to delete selected appointment.' });
                 }
-                const delete_appointment = yield prisma.appointment.delete({
+                const delete_appointment = yield prisma_1.default.appointment.delete({
                     where: { appointment_id }
                 });
                 // now we will delete all the chats linked to the appointment

@@ -1,16 +1,7 @@
 import { Request, Response, NextFunction } from 'express'
-import { PrismaClient } from '@prisma/client'
 import generateOTP, { generateReferralCode } from '../helpers/generateOTP';
-import { salt_round } from '../helpers/constants';
-import redisFunc from '../helpers/redisFunc';
 import { CustomRequest } from '../helpers/interface';
-import { sendMailOtp } from '../helpers/email';
-import { sendSMSOtp } from '../helpers/sms';
-import convertedDatetime from '../helpers/currrentDateTime';
-import auth from '../helpers/auth';
-const { Decimal } = require('decimal.js')
-const bcrypt = require('bcrypt')
-const prisma = new PrismaClient()
+import prisma from '../helpers/prisma'
 
 
 class Notification {
@@ -18,21 +9,35 @@ class Notification {
     allNotifications = async(req: CustomRequest, res: Response, next: NextFunction)=>{
         try {
             const user = req.account_holder.user
-            const patient_id = user.patient_id || null
-            const physician_id = user.physician_id || null
+            const patient_id = user.patient_id
+            const physician_id = user.physician_id
 
-            const all_notification = await prisma.notification.findMany({
+            const status = ""
+            const notification = await prisma.notification.findMany({
                 where: {
-                    patient_id, physician_id
-                }
+                    patient_id, physician_id, status: { contains: status, mode: "insensitive" }, notification_for_patient: patient_id ? true : false
+                },include: {
+                    patient: {
+                        select: {last_name: true, first_name: true, other_names: true, avatar: true, gender: true}
+                    }, 
+                    physician: {
+                        select: {last_name: true, first_name: true, other_names: true, avatar: true, gender: true, speciality: true, registered_as: true, bio: true, }
+                    },
+                    appointment: true,
+                    case_note: true,
+                    transaction:true
+                }, orderBy: {
+                    created_at: 'desc'
+                },
             })
 
-            return res.status(200).json({nbHit: all_notification.length, notification: all_notification})
-        } catch (err:any) {
-            console.log(`Error fetching all notifications err: `, err)
-            return res.status(500).json({err: `Error fetching all notifications err: `, error: err})
-            }
-            }
+            return res.status(200).json({nbHit: notification.length, notification})
+
+        } catch (err: any) {
+            console.log(`Error fltering notifications err: `, err)
+            return res.status(500).json({err: `Error filtering notifications err `, error: err})
+        }
+    }
             
     filterNotification = async(req: CustomRequest, res: Response, next: NextFunction)=>{
         const {status} = req.body
@@ -43,15 +48,27 @@ class Notification {
 
             const notification = await prisma.notification.findMany({
                 where: {
-                    status, patient_id, physician_id
-                }
+                    status, patient_id, physician_id, notification_for_patient: patient_id ? true : false
+                },include: {
+                    patient: {
+                        select: {last_name: true, first_name: true, other_names: true, avatar: true, gender: true}
+                    }, 
+                    physician: {
+                        select: {last_name: true, first_name: true, other_names: true, avatar: true, gender: true, speciality: true, registered_as: true, bio: true, }
+                    },
+                    appointment: true,
+                    case_note: true,
+                    transaction:true
+                }, orderBy: {
+                    created_at: 'desc'
+                },
             })
 
             return res.status(200).json({nbHit: notification.length, notification})
 
         } catch (err: any) {
             console.log(`Error fltering notifications err: `, err)
-            return res.status(500).json({err: `Error filtering notifications err: `, error: err})
+            return res.status(500).json({err: `Error filtering notifications err `, error: err})
         }
     }
             

@@ -1,6 +1,4 @@
 import { Request, Response, NextFunction } from 'express';
-import { PrismaClient } from '@prisma/client';
-const prisma = new PrismaClient();
 
 const handleDatabaseError = async (error: any, req: Request, res: Response, next: NextFunction) => {
     if (error instanceof Error) {

@@ -1,18 +1,25 @@
-import { Redis } from 'ioredis'
 import { v4 as uuidv4 } from 'uuid';
-import { redis_url } from './constants';
 import gen_token from './generateToken';
-import { redisDataProps } from './interface';
-if (!redis_url) {
-    throw new Error('REDIS URL not found')
-}
-const redis_client = new Redis(redis_url)
-
+import { redisDataProps, redisCallDataProps } from './interface';
+import {redis_client} from './prisma'
+import { jwt_secret } from './constants';
+const jwt = require('jsonwebtoken')
 
 class RedisFunc {
 
-    
-    
+    redisCallStore = async (user_id: string, availability: any, useful_time: number) => {
+        try {
+            const uuid: string = uuidv4();
+            const token = gen_token({ availability });
+            await redis_client.set(`${user_id}`, JSON.stringify(token), 'EX', 3600);
+            return user_id;
+        } catch (err) {
+            console.error('Error in redisAuthStore:', err);
+            throw err;
+        }
+    }
+
+
     redisStore = async ({ user, life_time }: redisDataProps) => {
         try {
             const uuid: string = uuidv4();

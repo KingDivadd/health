@@ -1,16 +1,44 @@
 import { Request, Response, NextFunction } from 'express'
-import { PrismaClient } from '@prisma/client'
 import redisFunc from '../helpers/redisFunc';
 import { CustomRequest } from '../helpers/interface';
 import { videosdk_api_key, videosdk_secret_key, videosdk_endpoint } from '../helpers/constants';
 import axios from 'axios';
 import {io} from '../index'
-
+import prisma from '../helpers/prisma'
 const jwt = require('jsonwebtoken')
 
-const prisma = new PrismaClient()
 
 class VideoChat {
+
+            
+        userJoinedWebHook =  (req: Request, res: Response, next: NextFunction) => {
+            const data = req.body;
+            console.log('User joined:', data);
+            // Handle user joined event
+            res.status(200).send('Webhook received',);
+        };
+
+        sessionStartedWebHook =  (req: Request, res: Response, next: NextFunction) => {
+            const data = req.body;
+            console.log('Session started:', data);
+            // Handle session started event
+            res.status(200).send('Webhook received');
+        };
+
+        userLeftWebHook =  (req: Request, res: Response, next: NextFunction) => {
+            const data = req.body;
+            console.log('User left:', data);
+            // Handle user left event
+            res.status(200).send('Webhook received');
+        };
+
+        sessionEndedWebHook =  (req: Request, res: Response, next: NextFunction) => {
+            const data = req.body;
+            console.log('Session ended:', data);
+            // Handle session ended event
+            res.status(200).send('Webhook received');
+        };
+
     
     generateToken = (req: CustomRequest, res: Response, next: NextFunction)=>{
         const {appointment_id} = req.body
@@ -58,6 +86,8 @@ class VideoChat {
     
             let call_receiver = patient_id ? appointment.physician_id : (physician_id ? appointment.patient_id : null);
             let caller = patient_id ? patient_id : (physician_id ? physician_id : null)
+
+            let callerInfo = patient_id ? user : (physician_id ? user : null)
             
     
             if (call_receiver == null) {
@@ -83,6 +113,7 @@ class VideoChat {
             meeting_id: meetingId,
             caller_id: caller,
             receiver_id: call_receiver,
+            caller_info: callerInfo
         })
 
         return res.status(200).json(response.data);
